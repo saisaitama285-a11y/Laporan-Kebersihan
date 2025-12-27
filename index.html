@@ -3,47 +3,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CLEANLOG - Sistem Laporan Real-time</title>
-    <!-- Tailwind CSS -->
+    <title>CLEANLOG PRO - Live Watermark</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
-        body { font-family: 'Plus Jakarta Sans', sans-serif; }
-        .delete-btn { transition: all 0.2s ease; }
-        .delete-btn:active { transform: scale(0.85); }
-        .card-animation { animation: slideIn 0.3s ease-out forwards; }
-        @keyframes slideIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        input:focus::placeholder { color: transparent; }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; }
+        .camera-btn { transition: all 0.2s ease; }
+        .camera-btn:active { transform: scale(0.95); opacity: 0.8; }
+        .wm-preview { position: relative; overflow: hidden; border-radius: 1rem; }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-900 overflow-x-hidden">
+<body class="text-slate-900">
 
     <div id="app">
-        <!-- Loading Screen -->
+        <!-- Loading -->
         <div id="loading-screen" class="fixed inset-0 bg-white z-[100] flex flex-col items-center justify-center">
-            <div class="animate-spin rounded-full h-12 w-12 border-4 border-indigo-600 border-t-transparent"></div>
-            <p class="mt-4 font-bold text-slate-500 text-sm">Menyiapkan Sistem...</p>
+            <div class="animate-spin rounded-full h-10 w-10 border-4 border-indigo-600 border-t-transparent"></div>
+            <p class="mt-4 font-bold text-slate-400 text-[10px] tracking-[0.3em] uppercase">Memuat Sistem...</p>
         </div>
 
-        <!-- Role Selection Screen -->
-        <div id="role-screen" class="hidden min-h-screen bg-indigo-50 flex items-center justify-center p-6">
-            <div class="bg-white p-8 rounded-3xl shadow-2xl max-w-sm w-full text-center border border-indigo-100">
-                <div class="w-20 h-20 bg-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-indigo-200">
-                    <i data-lucide="check-circle-2" class="text-white w-12 h-12"></i>
+        <!-- Login / Role -->
+        <div id="role-screen" class="hidden min-h-screen flex items-center justify-center p-6">
+            <div class="bg-white p-8 rounded-[2.5rem] shadow-2xl shadow-indigo-100 max-w-sm w-full text-center border border-slate-100">
+                <div class="w-20 h-20 bg-indigo-600 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl shadow-indigo-200">
+                    <i data-lucide="camera" class="text-white w-10 h-10"></i>
                 </div>
-                <h1 class="text-2xl font-black text-slate-800 mb-2 uppercase tracking-tight">CLEANLOG PRO</h1>
-                <p class="text-slate-500 mb-8 text-sm font-medium">Monitoring Kebersihan & Watermark</p>
-                <div class="space-y-4">
-                    <button onclick="showTokenInput()" class="w-full p-4 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all flex items-center justify-center gap-3">
-                        <i data-lucide="camera" class="w-5 h-5"></i> Mode Petugas (Upload)
+                <h1 class="text-2xl font-black text-slate-800 mb-1 italic">CLEANLOG <span class="text-indigo-600">PRO</span></h1>
+                <p class="text-slate-400 mb-8 text-[10px] font-bold uppercase tracking-widest">Sistem Laporan Foto Langsung</p>
+                
+                <div class="space-y-3">
+                    <button onclick="openTokenModal()" class="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-100 flex items-center justify-center gap-3">
+                        <i data-lucide="key-round" class="w-5 h-5"></i> Login Petugas
                     </button>
-                    <button onclick="setRole('viewer')" class="w-full p-4 bg-white border-2 border-slate-200 text-slate-700 rounded-xl font-bold hover:border-indigo-600 hover:text-indigo-600 transition-all flex items-center justify-center gap-3">
-                        <i data-lucide="layout-dashboard" class="w-5 h-5"></i> Mode Monitor (Lihat)
+                    <button onclick="setRole('viewer')" class="w-full py-4 bg-slate-50 text-slate-600 rounded-2xl font-bold hover:bg-slate-100 flex items-center justify-center gap-3 border border-slate-200">
+                        <i data-lucide="monitor" class="w-5 h-5"></i> Dashboard Monitor
                     </button>
                 </div>
             </div>
@@ -51,102 +45,107 @@
 
         <!-- Token Modal -->
         <div id="token-modal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6">
-            <div class="bg-white p-8 rounded-3xl shadow-2xl max-w-sm w-full border border-slate-100">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-xl font-black text-slate-800 uppercase italic">Verifikasi</h2>
-                    <button onclick="hideTokenInput()" class="text-slate-400">
-                        <i data-lucide="x" class="w-6 h-6"></i>
-                    </button>
-                </div>
-                <input type="password" id="token-input" placeholder="Token" class="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-center text-2xl font-black outline-none mb-6">
-                <button onclick="verifyToken()" class="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black shadow-xl hover:bg-indigo-700 transition-all">
-                    MASUK
-                </button>
+            <div class="bg-white p-8 rounded-[2rem] shadow-2xl max-w-sm w-full">
+                <h2 class="text-lg font-black text-slate-800 mb-2 uppercase italic">Token Akses</h2>
+                <p class="text-[10px] font-bold text-slate-400 mb-6 uppercase">Masukkan kode shift outlet anda</p>
+                <input type="password" id="token-input" placeholder="••••" class="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-center text-3xl font-black mb-6 tracking-[0.4em] focus:border-indigo-600 outline-none transition-all">
+                <button onclick="validateToken()" class="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black">KONFIRMASI</button>
+                <button onclick="closeTokenModal()" class="w-full mt-2 py-2 text-slate-400 text-xs font-bold uppercase">Batal</button>
             </div>
         </div>
 
-        <!-- Main Dashboard -->
-        <div id="main-screen" class="hidden min-h-screen pb-20">
-            <nav class="bg-white border-b border-slate-200 px-4 py-4 sticky top-0 z-20 shadow-sm">
-                <div class="max-w-4xl mx-auto flex justify-between items-center">
-                    <div class="flex items-center gap-2 font-black text-indigo-600 text-lg">
-                        <i data-lucide="check-circle-2" class="w-6 h-6"></i> CLEANLOG
-                    </div>
-                    <button onclick="logout()" class="p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-red-50 hover:text-red-500 transition-all">
-                        <i data-lucide="log-out" class="w-5 h-5"></i>
-                    </button>
+        <!-- Main Interface -->
+        <div id="main-screen" class="hidden min-h-screen pb-24">
+            <header class="bg-white border-b border-slate-100 sticky top-0 z-30 px-6 py-4 flex justify-between items-center shadow-sm">
+                <div>
+                    <h2 id="display-outlet" class="font-black text-indigo-600 text-sm italic leading-none">OUTLET NAME</h2>
+                    <p id="display-shift" class="text-[10px] font-bold text-slate-400 uppercase mt-1">SHIFT -</p>
                 </div>
-            </nav>
+                <button onclick="location.reload()" class="p-2 bg-slate-50 rounded-xl text-slate-400"><i data-lucide="log-out" class="w-5 h-5"></i></button>
+            </header>
 
-            <div class="max-w-4xl mx-auto p-4">
-                <!-- Navigation Tabs -->
-                <div id="uploader-tabs" class="hidden flex gap-2 mb-6 bg-white p-1.5 rounded-2xl shadow-sm border border-slate-200 w-fit">
-                    <button id="tab-list" onclick="switchTab('list')" class="px-6 py-2.5 rounded-xl text-sm font-bold bg-indigo-600 text-white shadow-md transition-all">Riwayat</button>
-                    <button id="tab-new" onclick="switchTab('new')" class="px-6 py-2.5 rounded-xl text-sm font-bold text-slate-500 transition-all">+ Baru</button>
+            <main class="max-w-xl mx-auto p-6">
+                <!-- Viewer Only Controls -->
+                <div id="viewer-nav" class="hidden mb-8">
+                    <div class="bg-white p-5 rounded-[2rem] border border-slate-100 shadow-sm">
+                        <label class="text-[10px] font-black text-slate-400 uppercase mb-2 block tracking-widest">Filter Area</label>
+                        <select id="filter-select" onchange="renderReports()" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm outline-none focus:ring-2 focus:ring-indigo-600">
+                            <option value="ALL">SEMUA OUTLET</option>
+                            <option value="Outlet TA 1">OUTLET TA 1</option>
+                            <option value="Outlet TA 2">OUTLET TA 2</option>
+                            <option value="Outlet Duri 1">OUTLET DURI 1</option>
+                            <option value="Outlet Duri 2">OUTLET DURI 2</option>
+                            <option value="Outlet Karet">OUTLET KARET</option>
+                            <option value="Outlet Grogol">OUTLET GROGOL</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Uploader Only Tabs -->
+                <div id="uploader-nav" class="hidden flex bg-white p-1 rounded-2xl border border-slate-100 mb-8 shadow-sm">
+                    <button onclick="showSection('list')" id="btn-list" class="flex-1 py-3 rounded-xl font-bold text-sm bg-indigo-600 text-white shadow-md">Riwayat</button>
+                    <button onclick="showSection('form')" id="btn-form" class="flex-1 py-3 rounded-xl font-bold text-sm text-slate-400">Ambil Foto</button>
                 </div>
 
                 <!-- Section: List -->
                 <div id="section-list" class="space-y-6">
-                    <div class="flex items-center justify-between">
-                        <h2 class="text-lg font-black text-slate-800 uppercase italic">Laporan Terkini</h2>
-                        <span id="report-count" class="text-xs font-bold bg-slate-200 px-3 py-1 rounded-full text-slate-600">0</span>
+                    <div id="reports-list" class="grid gap-6"></div>
+                    <div id="empty-state" class="hidden text-center py-20">
+                        <i data-lucide="camera-off" class="w-12 h-12 text-slate-200 mx-auto mb-4"></i>
+                        <p class="text-slate-400 font-bold text-sm">Belum ada laporan hari ini</p>
                     </div>
-                    <div id="reports-container" class="grid gap-6 sm:grid-cols-2"></div>
                 </div>
 
-                <!-- Section: New Form -->
-                <div id="section-new" class="hidden">
-                    <div class="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden max-w-xl mx-auto">
-                        <div class="p-6 bg-indigo-600 text-white">
-                            <h2 class="text-xl font-black uppercase tracking-tight italic">Buat Laporan</h2>
-                            <p class="text-indigo-100 text-[10px] uppercase font-bold tracking-widest">Foto dengan Watermark Otomatis</p>
-                        </div>
-                        <div class="p-6 space-y-6">
+                <!-- Section: Form -->
+                <div id="section-form" class="hidden">
+                    <div class="bg-white rounded-[2.5rem] border border-slate-100 shadow-xl overflow-hidden">
+                        <div class="p-8 space-y-6">
                             <div>
-                                <label class="text-[10px] font-black text-slate-400 uppercase mb-3 block tracking-widest">Lokasi Area</label>
-                                <select id="form-category" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm outline-none">
-                                    <option>Area Depan</option><option>Area Samping</option><option>Dinding</option>
-                                    <option>Kipas</option><option>Kompor</option><option>Chiler</option>
+                                <label class="text-[10px] font-black text-slate-400 uppercase mb-3 block tracking-widest italic">1. Pilih Area Kerja</label>
+                                <select id="input-area" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-sm outline-none">
+                                    <option>Area Depan</option>
+                                    <option>Area Samping</option>
+                                    <option>Dinding</option>
+                                    <option>Kipas</option>
+                                    <option>Kompor</option>
                                 </select>
                             </div>
 
                             <div class="grid grid-cols-2 gap-4">
-                                <div class="space-y-2 text-center">
-                                    <label class="text-[10px] font-black text-slate-400 uppercase block">Sebelum</label>
-                                    <div id="preview-before" onclick="triggerInput('input-before')" class="relative flex flex-col items-center justify-center aspect-square rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 hover:bg-slate-100 cursor-pointer overflow-hidden transition-all">
-                                        <i data-lucide="camera" class="text-slate-300"></i>
+                                <div class="space-y-2">
+                                    <label class="text-[9px] font-black text-slate-500 uppercase block text-center italic">Kondisi SEBELUM</label>
+                                    <div onclick="document.getElementById('file-before').click()" id="preview-before" class="aspect-square bg-slate-50 border-4 border-dashed border-slate-200 rounded-3xl flex flex-col items-center justify-center cursor-pointer overflow-hidden camera-btn">
+                                        <i data-lucide="camera" class="text-slate-300 w-8 h-8"></i>
+                                        <span class="text-[8px] font-black text-slate-300 mt-2">FOTO LIVE</span>
                                     </div>
-                                    <input type="file" id="input-before" accept="image/*" capture="environment" class="hidden" onchange="processImage(this, 'preview-before')">
+                                    <input type="file" id="file-before" accept="image/*" capture="environment" class="hidden" onchange="handleImage(this, 'before')">
                                 </div>
-                                <div class="space-y-2 text-center">
-                                    <label class="text-[10px] font-black text-slate-400 uppercase block">Sesudah</label>
-                                    <div id="preview-after" onclick="triggerInput('input-after')" class="relative flex flex-col items-center justify-center aspect-square rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 hover:bg-slate-100 cursor-pointer overflow-hidden transition-all">
-                                        <i data-lucide="camera" class="text-slate-300"></i>
+                                <div class="space-y-2">
+                                    <label class="text-[9px] font-black text-slate-500 uppercase block text-center italic">Kondisi SESUDAH</label>
+                                    <div onclick="document.getElementById('file-after').click()" id="preview-after" class="aspect-square bg-slate-50 border-4 border-dashed border-slate-200 rounded-3xl flex flex-col items-center justify-center cursor-pointer overflow-hidden camera-btn">
+                                        <i data-lucide="check-circle-2" class="text-slate-300 w-8 h-8"></i>
+                                        <span class="text-[8px] font-black text-slate-300 mt-2">FOTO LIVE</span>
                                     </div>
-                                    <input type="file" id="input-after" accept="image/*" capture="environment" class="hidden" onchange="processImage(this, 'preview-after')">
+                                    <input type="file" id="file-after" accept="image/*" capture="environment" class="hidden" onchange="handleImage(this, 'after')">
                                 </div>
                             </div>
 
                             <div>
-                                <textarea id="form-desc" class="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Keterangan tambahan..." rows="2"></textarea>
+                                <textarea id="input-desc" placeholder="Tambahkan catatan (opsional)..." class="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm min-h-[80px] outline-none"></textarea>
                             </div>
 
-                            <button id="btn-submit" onclick="submitReport()" class="w-full py-4 rounded-2xl font-black text-white bg-indigo-600 hover:bg-indigo-700 shadow-xl flex items-center justify-center gap-3 transition-all">
-                                <i data-lucide="send" class="w-5 h-5"></i> KIRIM DATA
+                            <button onclick="uploadReport()" id="btn-submit" class="w-full py-5 bg-indigo-600 text-white rounded-[2rem] font-black shadow-xl shadow-indigo-100 flex items-center justify-center gap-3">
+                                <i data-lucide="send" class="w-5 h-5"></i> KIRIM LAPORAN
                             </button>
                         </div>
                     </div>
                 </div>
-            </div>
+            </main>
         </div>
 
-        <!-- Image Modal -->
-        <div id="image-modal" class="hidden fixed inset-0 z-[100] bg-black/95 flex flex-col items-center justify-center p-4">
-            <button onclick="closeModal()" class="absolute top-6 right-6 p-2 text-white">
-                <i data-lucide="x" class="w-8 h-8"></i>
-            </button>
-            <img id="modal-img" src="" class="max-w-full max-h-[80vh] rounded-lg shadow-2xl">
-            <p id="modal-caption" class="mt-6 text-white font-bold text-sm bg-white/10 px-6 py-2 rounded-full"></p>
+        <!-- Fullscreen Image -->
+        <div id="image-modal" class="hidden fixed inset-0 z-[200] bg-black flex items-center justify-center p-4" onclick="this.classList.add('hidden')">
+            <img id="modal-img" src="" class="max-w-full max-h-full rounded-lg">
         </div>
     </div>
 
@@ -155,6 +154,7 @@
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, doc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
+        // CONFIG (Sama dengan sebelumnya)
         const firebaseConfig = {
             apiKey: "AIzaSyAxcZqjaKLKlZTs8oJ5ZUive7A2N18pom0",
             authDomain: "general-cleaning-7eda5.firebaseapp.com",
@@ -167,20 +167,27 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const APP_ID = 'cleanlog-prod-final';
-        const COLLECTION_PATH = ['artifacts', APP_ID, 'public', 'data', 'reports'];
-        const MASTER_TOKEN = "2345"; 
+        const APP_ID = 'cleanlog-v3-wm';
+        const COLLECTION = ['artifacts', APP_ID, 'public', 'data', 'reports'];
 
-        let currentUser = null;
-        let currentRole = null;
-        let unsubscribeReports = null;
-        let images = { before: null, after: null };
+        // TOKEN DATA
+        const TOKENS = {
+            "1111": { o: "Outlet TA 1", s: "Pagi" }, "1112": { o: "Outlet TA 1", s: "Siang" },
+            "2221": { o: "Outlet TA 2", s: "Pagi" }, "2222": { o: "Outlet TA 2", s: "Siang" },
+            "3331": { o: "Outlet Duri 1", s: "Pagi" }, "3332": { o: "Outlet Duri 1", s: "Siang" },
+            "4441": { o: "Outlet Duri 2", s: "Pagi" }, "4442": { o: "Outlet Duri 2", s: "Siang" },
+            "5551": { o: "Outlet Karet", s: "Pagi" }, "5552": { o: "Outlet Karet", s: "Siang" },
+            "6661": { o: "Outlet Grogol", s: "Pagi" }, "6662": { o: "Outlet Grogol", s: "Siang" }
+        };
+
+        let activeOutlet = "", activeShift = "", currentRole = "";
+        let rawReports = [];
+        let photoData = { before: null, after: null };
 
         lucide.createIcons();
 
         // Auth
         onAuthStateChanged(auth, (user) => {
-            currentUser = user;
             if (user) {
                 document.getElementById('loading-screen').classList.add('hidden');
                 document.getElementById('role-screen').classList.remove('hidden');
@@ -189,46 +196,49 @@
             }
         });
 
-        // Token
-        window.showTokenInput = () => document.getElementById('token-modal').classList.remove('hidden');
-        window.hideTokenInput = () => document.getElementById('token-modal').classList.add('hidden');
-        window.verifyToken = () => {
-            if (document.getElementById('token-input').value === MASTER_TOKEN) {
-                hideTokenInput();
+        // Navigation & Modal
+        window.openTokenModal = () => document.getElementById('token-modal').classList.remove('hidden');
+        window.closeTokenModal = () => document.getElementById('token-modal').classList.add('hidden');
+        
+        window.validateToken = () => {
+            const input = document.getElementById('token-input').value;
+            if (TOKENS[input]) {
+                activeOutlet = TOKENS[input].o;
+                activeShift = TOKENS[input].s;
                 setRole('uploader');
+                closeTokenModal();
             } else {
-                alert("Token Salah!");
+                alert("Token tidak dikenal!");
             }
         };
 
-        // Navigation
         window.setRole = (role) => {
             currentRole = role;
             document.getElementById('role-screen').classList.add('hidden');
             document.getElementById('main-screen').classList.remove('hidden');
-            document.getElementById('uploader-tabs').classList.toggle('hidden', role !== 'uploader');
+            
+            if (role === 'uploader') {
+                document.getElementById('uploader-nav').classList.remove('hidden');
+                document.getElementById('display-outlet').innerText = activeOutlet;
+                document.getElementById('display-shift').innerText = "SHIFT " + activeShift;
+            } else {
+                document.getElementById('viewer-nav').classList.remove('hidden');
+                document.getElementById('display-outlet').innerText = "MONITORING PUSAT";
+                document.getElementById('display-shift').innerText = "ALL OUTLETS";
+            }
             startListening();
         };
 
-        window.logout = () => {
-            if(confirm("Keluar sistem?")) {
-                if(unsubscribeReports) unsubscribeReports();
-                location.reload();
-            }
+        window.showSection = (name) => {
+            const isList = name === 'list';
+            document.getElementById('section-list').classList.toggle('hidden', !isList);
+            document.getElementById('section-form').classList.toggle('hidden', isList);
+            document.getElementById('btn-list').className = isList ? 'flex-1 py-3 rounded-xl font-bold text-sm bg-indigo-600 text-white shadow-md' : 'flex-1 py-3 rounded-xl font-bold text-sm text-slate-400';
+            document.getElementById('btn-form').className = !isList ? 'flex-1 py-3 rounded-xl font-bold text-sm bg-indigo-600 text-white shadow-md' : 'flex-1 py-3 rounded-xl font-bold text-sm text-slate-400';
         };
 
-        window.switchTab = (tab) => {
-            const isNew = tab === 'new';
-            document.getElementById('section-list').classList.toggle('hidden', isNew);
-            document.getElementById('section-new').classList.toggle('hidden', !isNew);
-            document.getElementById('tab-list').className = isNew ? 'px-6 py-2.5 rounded-xl text-sm font-bold text-slate-500' : 'px-6 py-2.5 rounded-xl text-sm font-bold bg-indigo-600 text-white shadow-md';
-            document.getElementById('tab-new').className = !isNew ? 'px-6 py-2.5 rounded-xl text-sm font-bold text-slate-500' : 'px-6 py-2.5 rounded-xl text-sm font-bold bg-indigo-600 text-white shadow-md';
-        };
-
-        window.triggerInput = (id) => document.getElementById(id).click();
-
-        // PROCESS IMAGE WITH WATERMARK
-        window.processImage = (input, previewId) => {
+        // IMAGE WITH WATERMARK LOGIC
+        window.handleImage = (input, type) => {
             const file = input.files[0];
             if (!file) return;
 
@@ -240,107 +250,137 @@
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
                     
-                    // Ukuran tetap untuk optimasi
-                    const width = 1000;
-                    const scale = width / img.width;
-                    const height = img.height * scale;
+                    // Fixed width for processing
+                    const targetWidth = 1080;
+                    const scale = targetWidth / img.width;
+                    const targetHeight = img.height * scale;
                     
-                    canvas.width = width;
-                    canvas.height = height;
+                    canvas.width = targetWidth;
+                    canvas.height = targetHeight;
                     
-                    // Gambar foto asli
-                    ctx.drawImage(img, 0, 0, width, height);
+                    // Draw original image
+                    ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
                     
-                    // Setup Watermark (Tanggal & Jam)
+                    // Generate Timestamp
                     const now = new Date();
-                    const timestampStr = now.toLocaleDateString('id-ID', { 
-                        weekday: 'long', 
-                        year: 'numeric', 
-                        month: 'long', 
-                        day: 'numeric' 
-                    }) + " | " + now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-
-                    // Background Watermark Hitam Transparan
-                    ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
-                    ctx.fillRect(0, height - 60, width, 60);
-
-                    // Teks Watermark
-                    ctx.fillStyle = "white";
-                    ctx.font = "bold 24px Plus Jakarta Sans, sans-serif";
-                    ctx.textAlign = "left";
-                    ctx.fillText("CLEANLOG - " + timestampStr, 30, height - 22);
+                    const day = now.toLocaleDateString('id-ID', { weekday: 'long' });
+                    const date = now.toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric' });
+                    const time = now.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+                    
+                    // WATERMARK BOX
+                    const barHeight = 100;
+                    ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
+                    ctx.fillRect(0, targetHeight - barHeight, targetWidth, barHeight);
+                    
+                    // WATERMARK TEXT
+                    ctx.fillStyle = "#ffffff";
+                    ctx.font = "900 32px 'Plus Jakarta Sans', sans-serif";
+                    ctx.fillText(`${activeOutlet.toUpperCase()} - SHIFT ${activeShift.toUpperCase()}`, 40, targetHeight - 55);
+                    
+                    ctx.fillStyle = "#e2e8f0";
+                    ctx.font = "bold 24px 'Plus Jakarta Sans', sans-serif";
+                    ctx.fillText(`${day}, ${date} | PUKUL ${time} WIB`, 40, targetHeight - 20);
 
                     const finalData = canvas.toDataURL('image/jpeg', 0.8);
+                    photoData[type] = finalData;
                     
-                    if (previewId === 'preview-before') images.before = finalData;
-                    else images.after = finalData;
-
+                    const previewId = type === 'before' ? 'preview-before' : 'preview-after';
                     document.getElementById(previewId).innerHTML = `<img src="${finalData}" class="w-full h-full object-cover">`;
                 };
             };
             reader.readAsDataURL(file);
         };
 
-        // Actions
-        window.submitReport = async () => {
-            if (!images.before || !images.after) return alert("Ambil foto sebelum & sesudah!");
+        // Firestore Actions
+        window.uploadReport = async () => {
+            if (!photoData.before || !photoData.after) return alert("Wajib lampirkan foto sebelum & sesudah!");
             const btn = document.getElementById('btn-submit');
-            btn.disabled = true; btn.innerText = "Mengirim...";
+            btn.disabled = true; btn.innerHTML = "Sedang Mengirim...";
 
             try {
-                await addDoc(collection(db, ...COLLECTION_PATH), {
-                    category: document.getElementById('form-category').value,
-                    description: document.getElementById('form-desc').value,
-                    beforeImage: images.before,
-                    afterImage: images.after,
-                    timestamp: Date.now(),
-                    dateString: new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' }),
-                    authorName: 'Petugas-' + currentUser.uid.slice(0,4)
+                await addDoc(collection(db, ...COLLECTION), {
+                    outlet: activeOutlet,
+                    shift: activeShift,
+                    area: document.getElementById('input-area').value,
+                    desc: document.getElementById('input-desc').value,
+                    imgBefore: photoData.before,
+                    imgAfter: photoData.after,
+                    timestamp: Date.now()
                 });
-                alert("Berhasil!");
+                alert("LAPORAN TERKIRIM!");
                 location.reload();
-            } catch (err) { alert("Gagal!"); btn.disabled = false; }
-        };
-
-        window.deleteReport = async (id) => {
-            if (confirm("Hapus?")) {
-                try { await deleteDoc(doc(db, ...COLLECTION_PATH, id)); } catch(e) { alert("Error!"); }
+            } catch (err) {
+                alert("Gagal kirim. Coba lagi.");
+                btn.disabled = false;
+                btn.innerHTML = "KIRIM LAPORAN";
             }
         };
 
+        window.deleteReport = async (id) => {
+            if (confirm("Hapus laporan ini permanen?")) {
+                await deleteDoc(doc(db, ...COLLECTION, id));
+            }
+        };
+
+        // Listener
         function startListening() {
-            const q = query(collection(db, ...COLLECTION_PATH), orderBy('timestamp', 'desc'));
-            unsubscribeReports = onSnapshot(q, (snap) => {
-                const container = document.getElementById('reports-container');
-                document.getElementById('report-count').innerText = snap.size;
-                container.innerHTML = "";
-                snap.forEach(docSnap => {
-                    const data = docSnap.data();
-                    const id = docSnap.id;
-                    container.innerHTML += `
-                        <div class="bg-white rounded-3xl border border-slate-200 overflow-hidden card-animation shadow-sm">
-                            <div class="p-4 flex justify-between items-center bg-slate-50">
-                                <span class="text-[10px] font-black bg-indigo-600 text-white px-2 py-1 rounded italic uppercase">${data.category}</span>
-                                ${currentRole === 'uploader' ? `<button onclick="deleteReport('${id}')" class="text-red-400 p-1 bg-red-50 rounded-lg"><i data-lucide="trash-2" class="w-4 h-4"></i></button>` : ''}
-                            </div>
-                            <div class="grid grid-cols-2 gap-0.5">
-                                <div onclick="openModal('${data.beforeImage}', 'SEBELUM')" class="relative aspect-square"><img src="${data.beforeImage}" class="w-full h-full object-cover"></div>
-                                <div onclick="openModal('${data.afterImage}', 'SESUDAH')" class="relative aspect-square"><img src="${data.afterImage}" class="w-full h-full object-cover"></div>
-                            </div>
-                            <div class="p-4"><p class="text-xs text-slate-500 italic">"${data.description || 'Selesai.'}"</p></div>
-                        </div>
-                    `;
-                });
-                lucide.createIcons();
+            const q = query(collection(db, ...COLLECTION), orderBy('timestamp', 'desc'));
+            onSnapshot(q, (snap) => {
+                rawReports = [];
+                snap.forEach(d => rawReports.push({ id: d.id, ...d.data() }));
+                renderReports();
             });
         }
 
-        window.openModal = (src, cap) => {
+        window.renderReports = () => {
+            const list = document.getElementById('reports-list');
+            const filter = document.getElementById('filter-select').value;
+            list.innerHTML = "";
+            
+            const filtered = rawReports.filter(r => {
+                if (currentRole === 'uploader') return r.outlet === activeOutlet;
+                if (filter !== 'ALL') return r.outlet === filter;
+                return true;
+            });
+
+            document.getElementById('empty-state').classList.toggle('hidden', filtered.length > 0);
+
+            filtered.forEach(r => {
+                list.innerHTML += `
+                    <div class="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-500">
+                        <div class="px-5 py-4 flex justify-between items-center bg-slate-50/50">
+                            <div>
+                                <p class="text-[8px] font-black text-indigo-600 uppercase italic leading-none">${r.outlet}</p>
+                                <p class="text-[11px] font-black text-slate-800 uppercase mt-1 tracking-tight">${r.area}</p>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <span class="text-[8px] font-bold bg-white px-2 py-1 rounded-lg border border-slate-100 text-slate-400">SHIFT ${r.shift}</span>
+                                ${currentRole === 'uploader' ? `<button onclick="deleteReport('${r.id}')" class="text-red-300"><i data-lucide="trash-2" class="w-4 h-4"></i></button>` : ''}
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-0.5">
+                            <div class="relative group" onclick="viewImage('${r.imgBefore}')">
+                                <img src="${r.imgBefore}" class="aspect-square object-cover">
+                                <span class="absolute top-2 left-2 px-2 py-0.5 bg-black/40 text-white text-[7px] font-black rounded backdrop-blur-sm">BEFORE</span>
+                            </div>
+                            <div class="relative group" onclick="viewImage('${r.imgAfter}')">
+                                <img src="${r.imgAfter}" class="aspect-square object-cover">
+                                <span class="absolute top-2 left-2 px-2 py-0.5 bg-indigo-600/60 text-white text-[7px] font-black rounded backdrop-blur-sm">AFTER</span>
+                            </div>
+                        </div>
+                        <div class="p-4">
+                            <p class="text-[10px] text-slate-500 italic">"${r.desc || 'Tugas selesai dengan baik.'}"</p>
+                        </div>
+                    </div>
+                `;
+            });
+            lucide.createIcons();
+        };
+
+        window.viewImage = (src) => {
             document.getElementById('modal-img').src = src;
-            document.getElementById('modal-caption').innerText = cap;
             document.getElementById('image-modal').classList.remove('hidden');
         };
-        window.closeModal = () => document.getElementById('image-modal').classList.add('hidden');
     </script>
 </body>
 </html>
