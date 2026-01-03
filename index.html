@@ -147,9 +147,9 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { initializeFirestore, collection, addDoc, onSnapshot, query, orderBy, doc, deleteDoc, updateDoc, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { getStorage, ref, uploadString, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js"; 
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { initializeFirestore, collection, addDoc, onSnapshot, query, orderBy, doc, deleteDoc, updateDoc, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
         const firebaseConfig = {
             apiKey: "AIzaSyAxcZqjaKLKlZTs8oJ5ZUive7A2N18pom0",
             authDomain: "general-cleaning-7eda5.firebaseapp.com",
@@ -162,7 +162,6 @@ import { getStorage, ref, uploadString, getDownloadURL } from "https://www.gstat
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = initializeFirestore(app, { experimentalForceLongPolling: true });
-        const storage = getStorage(app);
         enableIndexedDbPersistence(db).catch(() => {});
 
         const APP_ID = 'cleanlog-approval-v3'; // Tetap di V3 agar sinkron dengan data sebelumnya
@@ -253,58 +252,21 @@ import { getStorage, ref, uploadString, getDownloadURL } from "https://www.gstat
         };
 
         window.uploadReport = async () => {
-    if (!photoData.before || !photoData.after) return alert("Ambil foto before & after!");
-    
-    const btn = document.getElementById('btn-submit');
-    btn.disabled = true;
-    btn.innerText = "Mengunggah Gambar...";
-
-    try {
-        const timestamp = Date.now();
-        
-        // 1. Fungsi Helper untuk Upload ke Storage
-        const uploadImg = async (base64Str, type) => {
-            const storageRef = ref(storage, `reports/${activeOutlet}_${timestamp}_${type}.jpg`);
-            await uploadString(storageRef, base64Str, 'data_url');
-            return await getDownloadURL(storageRef);
+            if (!photoData.before || !photoData.after) return alert("Ambil foto before & after!");
+            const btn = document.getElementById('btn-submit'); btn.disabled = true; btn.innerText = "Mengirim...";
+            try {
+                await addDoc(collection(db, ...COLLECTION), {
+                    outlet: activeOutlet, shift: activeShift, area: document.getElementById('input-area').value,
+                    desc: document.getElementById('input-desc').value, imgBefore: photoData.before, imgAfter: photoData.after,
+                    status: 'pending', adminComment: '', timestamp: Date.now()
+                });
+                photoData = {before:null, after:null}; document.getElementById('input-desc').value = "";
+                document.getElementById('preview-before').innerHTML = '<i data-lucide="camera" class="text-slate-300"></i>';
+                document.getElementById('preview-after').innerHTML = '<i data-lucide="check-circle-2" class="text-slate-300"></i>';
+                lucide.createIcons(); showSection('list');
+            } catch(e) { alert("Koneksi gagal, coba lagi."); }
+            btn.disabled = false; btn.innerText = "SIMPAN & LAPOR";
         };
-
-        // 2. Proses Upload kedua gambar
-        const urlBefore = await uploadImg(photoData.before, 'before');
-        const urlAfter = await uploadImg(photoData.after, 'after');
-
-        btn.innerText = "Menyimpan Data...";
-
-        // 3. Simpan URL-nya saja ke Firestore
-        await addDoc(collection(db, ...COLLECTION), {
-            outlet: activeOutlet,
-            shift: activeShift,
-            area: document.getElementById('input-area').value,
-            desc: document.getElementById('input-desc').value,
-            imgBefore: urlBefore, // Sekarang isinya link https://...
-            imgAfter: urlAfter,   // Sekarang isinya link https://...
-            status: 'pending',
-            adminComment: '',
-            timestamp: timestamp
-        });
-
-        // Reset Form
-        photoData = {before:null, after:null};
-        document.getElementById('input-desc').value = "";
-        document.getElementById('preview-before').innerHTML = '<i data-lucide="camera" class="text-slate-300"></i>';
-        document.getElementById('preview-after').innerHTML = '<i data-lucide="check-circle-2" class="text-slate-300"></i>';
-        lucide.createIcons();
-        showSection('list');
-        alert("Laporan berhasil terkirim!");
-
-    } catch(e) {
-        console.error(e);
-        alert("Gagal mengunggah: " + e.message);
-    } finally {
-        btn.disabled = false;
-        btn.innerText = "SIMPAN & LAPOR";
-    }
-};
 
         function startListening() {
             const q = query(collection(db, ...COLLECTION), orderBy('timestamp', 'desc'));
