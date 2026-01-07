@@ -163,8 +163,14 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = initializeFirestore(app, { experimentalForceLongPolling: true });
-        enableIndexedDbPersistence(db).catch(() => {});
-
+        // Ganti baris persistence lama dengan ini
+enableIndexedDbPersistence(db).catch((err) => {
+    if (err.code == 'failed-precondition') {
+        console.warn("Persistence gagal: Multiple tabs open");
+    } else if (err.code == 'unimplemented') {
+        console.warn("Persistence tidak didukung browser ini");
+    }
+});
         const APP_ID = 'cleanlog-approval-v3';
         const COLLECTION = ['artifacts', APP_ID, 'public', 'data', 'reports'];
         const SHIFT_HOURS = { "Pagi": { start: "05:30", end: "14:00" }, "Siang": { start: "14:00", end: "22:10" } };
@@ -275,43 +281,60 @@
         };
 
         // --- REAL-TIME LISTENER & NOTIFICATIONS ---
-        function startListening() {
-            let q;
-            if (currentRole === 'uploader') {
-                q = query(collection(db, ...COLLECTION), where("outlet", "==", activeOutlet), orderBy('timestamp', 'desc'), limit(10));
-            } else {
-                q = query(collection(db, ...COLLECTION), orderBy('timestamp', 'desc'), limit(10));
-            }
-            
-            onSnapshot(q, (snap) => {
-                if (!isInitialLoad) {
-                    snap.docChanges().forEach((change) => {
-                        const docData = change.doc.data();
-                        
-                        // Notifikasi untuk Manager jika ada tugas masuk
-                        if (change.type === "added" && currentRole === 'viewer') {
-                            triggerPush("Tugas Baru!", `${docData.outlet} baru saja mengirim laporan ${docData.area}`);
-                        }
-                        
-                        // Notifikasi untuk Petugas jika laporan di-approve/reject
-                        if (change.type === "modified" && currentRole === 'uploader') {
-                            const statusLabel = docData.status === 'approved' ? "DISETUJUI ✅" : "DITOLAK ❌";
-                            triggerPush("Update Laporan", `Laporan ${docData.area} Anda telah ${statusLabel}`);
-                        }
-                    });
+        // Ganti fungsi startListening lama dengan ini
+function startListening() {
+    let q;
+    // Meningkatkan limit ke 50 agar laporan yang baru saja lewat tidak hilang dari pantauan real-time
+    if (currentRole === 'uploader') {
+        q = query(collection(db, ...COLLECTION), 
+            where("outlet", "==", activeOutlet), 
+            orderBy('timestamp', 'desc'), 
+            limit(50));
+    } else {
+        q = query(collection(db, ...COLLECTION), 
+            orderBy('timestamp', 'desc'), 
+            limit(50));
+    }
+    
+    onSnapshot(q, (snap) => {
+        // Logika Notifikasi Push
+        if (!isInitialLoad) {
+            snap.docChanges().forEach((change) => {
+                const docData = change.doc.data();
+                if (change.type === "added" && currentRole === 'viewer') {
+                    triggerPush("Tugas Baru!", `${docData.outlet}: ${docData.area}`);
                 }
-                
-                rawReports = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-                if (snap.docs.length > 0) lastVisibleDoc = snap.docs[snap.docs.length - 1];
-                
-                const loadMoreBtn = document.getElementById('load-more-container');
-                (snap.docs.length === 10) ? loadMoreBtn.classList.remove('hidden') : loadMoreBtn.classList.add('hidden');
-                
-                renderReports(); 
-                isInitialLoad = false;
+                if (change.type === "modified") {
+                    // Notifikasi jika status berubah (Approved/Rejected)
+                    const statusLabel = docData.status === 'approved' ? "DISETUJUI ✅" : "DITOLAK ❌";
+                    if (currentRole === 'uploader') {
+                        triggerPush("Update Laporan", `${docData.area} telah ${statusLabel}`);
+                    }
+                }
             });
         }
-
+        
+        // Update Data Array
+        rawReports = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        
+        if (snap.docs.length > 0) {
+            lastVisibleDoc = snap.docs[snap.docs.length - 1];
+        }
+        
+        // Tampilkan/Sembunyikan tombol Load More
+        const loadMoreBtn = document.getElementById('load-more-container');
+        if (snap.docs.length >= 50) {
+            loadMoreBtn.classList.remove('hidden');
+        } else {
+            loadMoreBtn.classList.add('hidden');
+        }
+        
+        renderReports(); 
+        isInitialLoad = false;
+    }, (error) => {
+        console.error("Snapshot error:", error);
+    });
+}
         // --- FORM LOGIC ---
         window.processPhoto = (input, type) => {
             const file = input.files[0]; if (!file) return;
@@ -336,22 +359,42 @@
         };
 
         window.uploadReport = async () => {
-            if (!photoData.before || !photoData.after) return alert("Ambil foto sebelum dan sesudah!");
-            const btn = document.getElementById('btn-submit'); btn.disabled = true; btn.innerText = "Mengirim...";
-            try {
-                await addDoc(collection(db, ...COLLECTION), {
-                    outlet: activeOutlet, shift: activeShift, area: document.getElementById('input-area').value,
-                    desc: document.getElementById('input-desc').value, imgBefore: photoData.before, imgAfter: photoData.after,
-                    status: 'pending', adminComment: '', timestamp: Date.now()
-                });
-                alert("Laporan Berhasil Terkirim!"); // Feedback visual sukses
-                photoData = {before:null, after:null}; document.getElementById('input-desc').value = "";
-                document.getElementById('preview-before').innerHTML = '<i data-lucide="camera" class="text-slate-300"></i>';
-                document.getElementById('preview-after').innerHTML = '<i data-lucide="check-circle-2" class="text-slate-300"></i>';
-                lucide.createIcons(); showSection('list');
-            } catch(e) { alert("Gagal mengirim, cek koneksi internet."); }
-            btn.disabled = false; btn.innerText = "SIMPAN & LAPOR";
-        };
+    if (!photoData.before || !photoData.after) return alert("Ambil foto sebelum dan sesudah!");
+    
+    const btn = document.getElementById('btn-submit');
+    btn.disabled = true;
+    btn.innerText = "Mengirim...";
+
+    try {
+        await addDoc(collection(db, ...COLLECTION), {
+            outlet: activeOutlet,
+            shift: activeShift,
+            area: document.getElementById('input-area').value,
+            desc: document.getElementById('input-desc').value,
+            imgBefore: photoData.before,
+            imgAfter: photoData.after,
+            status: 'pending',
+            adminComment: '',
+            timestamp: Date.now()
+        });
+
+        // Reset Form Total
+        photoData = { before: null, after: null };
+        document.getElementById('input-desc').value = "";
+        document.getElementById('preview-before').innerHTML = '<i data-lucide="camera" class="text-slate-300"></i>';
+        document.getElementById('preview-after').innerHTML = '<i data-lucide="check-circle-2" class="text-slate-300"></i>';
+        
+        lucide.createIcons();
+        alert("Laporan Terkirim!");
+        showSection('list');
+    } catch(e) {
+        console.error(e);
+        alert("Gagal kirim. Cek sinyal internet Anda.");
+    } finally {
+        btn.disabled = false;
+        btn.innerText = "SIMPAN & LAPOR";
+    }
+};
 
         window.submitEvaluation = async () => {
             const status = document.getElementById('status-update').value;
