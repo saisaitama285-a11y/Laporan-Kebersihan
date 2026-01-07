@@ -142,40 +142,29 @@
         </div>
     </div>
 
-<script type="module">
+    <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { 
-    initializeFirestore, 
-    persistentLocalCache, 
-    persistentMultipleTabManager,
-    collection, addDoc, onSnapshot, query, orderBy, doc, deleteDoc, updateDoc, where, limit
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { 
+            initializeFirestore, collection, addDoc, onSnapshot, 
+            query, orderBy, doc, deleteDoc, updateDoc, 
+            enableIndexedDbPersistence, limit, startAfter, getDocs, writeBatch, where 
+        } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-const firebaseConfig = {
-    apiKey: "AIzaSyAxcZqjaKLKlZTs8oJ5ZUive7A2N18pom0",
-    authDomain: "general-cleaning-7eda5.firebaseapp.com",
-    projectId: "general-cleaning-7eda5",
-    storageBucket: "general-cleaning-7eda5.firebasestorage.app",
-    messagingSenderId: "439718893376",
-    appId: "1:439718893376:web:499d021592a97f14d7cca5"
-};
+        const firebaseConfig = {
+            apiKey: "AIzaSyAxcZqjaKLKlZTs8oJ5ZUive7A2N18pom0",
+            authDomain: "general-cleaning-7eda5.firebaseapp.com",
+            projectId: "general-cleaning-7eda5",
+            storageBucket: "general-cleaning-7eda5.firebasestorage.app",
+            messagingSenderId: "439718893376",
+            appId: "1:439718893376:web:499d021592a97f14d7cca5"
+        };
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
-        const db = initializeFirestore(app, {
-    localCache: persistentLocalCache({
-        tabManager: persistentMultipleTabManager()
-    })
-});
-        // Ganti baris persistence lama dengan ini
-enableIndexedDbPersistence(db).catch((err) => {
-    if (err.code == 'failed-precondition') {
-        console.warn("Persistence gagal: Multiple tabs open");
-    } else if (err.code == 'unimplemented') {
-        console.warn("Persistence tidak didukung browser ini");
-    }
-});
+        const db = initializeFirestore(app, { experimentalForceLongPolling: true });
+        enableIndexedDbPersistence(db).catch(() => {});
+
         const APP_ID = 'cleanlog-approval-v3';
         const COLLECTION = ['artifacts', APP_ID, 'public', 'data', 'reports'];
         const SHIFT_HOURS = { "Pagi": { start: "05:30", end: "14:00" }, "Siang": { start: "14:00", end: "22:10" } };
@@ -194,22 +183,8 @@ enableIndexedDbPersistence(db).catch((err) => {
         let activeOutlet = "", activeShift = "", currentRole = "", pendingEvalId = "", rawReports = [], photoData = { before: null, after: null }, loginType = 'uploader'; 
         let lastVisibleDoc = null;
         let isLoadingMore = false;
-        let isInitialLoad = true; // Untuk mencegah notifikasi data lama saat pertama buka
 
-        // --- SISTEM NOTIFIKASI ---
-        async function requestNotificationPermission() {
-            if ("Notification" in window) {
-                const permission = await Notification.requestPermission();
-                console.log("Status Izin Notifikasi:", permission);
-            }
-        }
-
-        function triggerPush(title, message) {
-    if ("Notification" in window && Notification.permission === "granted") {
-        new Notification(title, { body: message });
-    }
-}
-        // --- AUTH & SESSION ---
+        // LOGIKA AUTO-LOGIN & HISTORY
         window.logout = () => {
             if(confirm("Keluar dari aplikasi?")) {
                 localStorage.removeItem('cleanlog_session');
@@ -222,9 +197,6 @@ enableIndexedDbPersistence(db).catch((err) => {
             document.getElementById('main-screen').classList.remove('hidden');
             document.getElementById('display-outlet').innerText = activeOutlet;
             document.getElementById('display-shift').innerText = "SHIFT: " + activeShift;
-            
-            requestNotificationPermission(); // Minta izin saat login berhasil
-
             if (currentRole === 'uploader') {
                 document.getElementById('uploader-nav').classList.remove('hidden');
                 showSection('list', false);
@@ -243,9 +215,32 @@ enableIndexedDbPersistence(db).catch((err) => {
                     if (Date.now() < session.expiry) {
                         activeOutlet = session.outlet; activeShift = session.shift; currentRole = session.role;
                         applyLoginState();
+                        history.replaceState({ section: 'list' }, "");
                         return;
                     } else { localStorage.removeItem('cleanlog_session'); }
                 }
+                // Listener khusus petugas untuk memantau perubahan status
+function startPetugasListener() {
+    if (currentRole !== 'uploader') return;
+
+    const qStatus = query(
+        collection(db, ...COLLECTION), 
+        where("outlet", "==", activeOutlet),
+        where("status", "!=", "pending")
+    );
+
+    onSnapshot(qStatus, (snap) => {
+        snap.docChanges().forEach((change) => {
+            if (change.type === "modified") {
+                const data = change.doc.data();
+                new Notification("Update Laporan!", {
+                    body: `Laporan area ${data.area} telah ${data.status.toUpperCase()}`,
+                    icon: "https://cdn-icons-png.flaticon.com/512/190/190411.png"
+                });
+            }
+        });
+    });
+}
                 document.getElementById('role-screen').classList.remove('hidden');
             } else { signInAnonymously(auth); }
         });
@@ -254,103 +249,97 @@ enableIndexedDbPersistence(db).catch((err) => {
         window.closeTokenModal = () => document.getElementById('token-modal').classList.add('hidden');
         
         window.validateToken = async () => {
-            const input = document.getElementById('token-input').value;
-            const warn = document.getElementById('shift-warning');
-            const data = TOKENS[loginType][input];
+    const input = document.getElementById('token-input').value;
+    const warn = document.getElementById('shift-warning');
+    
+    
+    
+    // 1. Cek token di kategori yang dipilih
+    const data = TOKENS[loginType][input];
+    
+    if (data) {
+        // Validasi Jam Shift untuk Petugas
+        if (loginType === 'uploader') {
+            const now = new Date();
+            const currentMin = now.getHours() * 60 + now.getMinutes();
+            const [hS, mS] = SHIFT_HOURS[data.s].start.split(':').map(Number);
+            const [hE, mE] = SHIFT_HOURS[data.s].end.split(':').map(Number);
             
-            if (data) {
-                if (loginType === 'uploader') {
-                    const now = new Date();
-                    const currentMin = now.getHours() * 60 + now.getMinutes();
-                    const [hS, mS] = SHIFT_HOURS[data.s].start.split(':').map(Number);
-                    const [hE, mE] = SHIFT_HOURS[data.s].end.split(':').map(Number);
-                    if (currentMin < (hS*60+mS) || currentMin > (hE*60+mE)) {
-                        warn.innerText = "TOKEN SALAH (DI LUAR JAM SHIFT)";
-                        warn.classList.remove('hidden');
-                        return;
-                    } 
-                }
-                activeOutlet = data.o; activeShift = data.s; currentRole = loginType;
-                const sessionData = { outlet: data.o, shift: data.s, role: loginType, expiry: Date.now() + (12 * 60 * 60 * 1000) };
-                localStorage.setItem('cleanlog_session', JSON.stringify(sessionData));
-                applyLoginState();
-                closeTokenModal();
-            } else {
-                warn.innerText = "TOKEN SALAH";
+            if (currentMin < (hS*60+mS) || currentMin > (hE*60+mE)) {
+                warn.innerText = "TOKEN SALAH (DI LUAR JAM SHIFT)";
                 warn.classList.remove('hidden');
-            }
+                return;
+            } 
+        }
+        
+        // Fungsi meminta izin notifikasi untuk semua user
+async function requestNotification() {
+    if ("Notification" in window && Notification.permission !== "granted") {
+        await Notification.requestPermission();
+    }
+}
+
+// Jalankan saat login berhasil
+function onLoginSuccess() {
+    requestNotification();
+    applyLoginState(); //
+}
+
+        // Simpan Session jika benar
+        activeOutlet = data.o; 
+        activeShift = data.s; 
+        currentRole = loginType;
+        const sessionData = { 
+            outlet: data.o, 
+            shift: data.s, 
+            role: loginType, 
+            expiry: Date.now() + (12 * 60 * 60 * 1000) 
+        };
+        localStorage.setItem('cleanlog_session', JSON.stringify(sessionData));
+        applyLoginState();
+        closeTokenModal();
+    } else {
+        // 2. Jika Salah: Tampilkan pesan sederhana di UI
+        warn.innerText = "TOKEN SALAH";
+        warn.classList.remove('hidden');
+
+        // 3. Kirim Alert ke Firebase untuk dipantau Manager
+        try {
+            const { collection, addDoc } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+            await addDoc(collection(db, "login_alerts"), {
+                attemptedToken: input,
+                targetRole: loginType,
+                timestamp: Date.now(),
+                deviceInfo: navigator.userAgent,
+                status: "FAILED_ATTEMPT"
+            });
+        } catch (e) {
+            console.error("Gagal mengirim alert");
+        }
+        
+        document.getElementById('token-input').value = "";
+    }
+};
+        window.showSection = (s, push = true) => {
+            const isL = s === 'list';
+            document.getElementById('section-list').classList.toggle('hidden', !isL);
+            document.getElementById('section-form').classList.toggle('hidden', isL);
+            document.getElementById('btn-list').className = isL ? 'flex-1 py-3 rounded-xl font-bold text-sm bg-indigo-600 text-white shadow-md' : 'flex-1 py-3 rounded-xl font-bold text-sm text-slate-400';
+            document.getElementById('btn-form').className = !isL ? 'flex-1 py-3 rounded-xl font-bold text-sm bg-indigo-600 text-white shadow-md' : 'flex-1 py-3 rounded-xl font-bold text-sm text-slate-400';
+            if (push) history.pushState({ section: s }, "");
         };
 
-        // --- REAL-TIME LISTENER & NOTIFICATIONS ---
-        // Ganti fungsi startListening lama dengan ini
-function startListening() {
-    let q;
-    // Limit dinaikkan ke 50 agar status data lama tetap terpantau jika di-update manager
-    if (currentRole === 'uploader') {
-        q = query(collection(db, ...COLLECTION), where("outlet", "==", activeOutlet), orderBy('timestamp', 'desc'), limit(50));
-    } else {
-        q = query(collection(db, ...COLLECTION), orderBy('timestamp', 'desc'), limit(50));
-    }
-    
-    onSnapshot(q, (snap) => {
-        if (!isInitialLoad) {
-            snap.docChanges().forEach((change) => {
-                const docData = change.doc.data();
-                if (change.type === "modified") {
-                    const statusLabel = docData.status === 'approved' ? "DISETUJUI ✅" : (docData.status === 'rejected' ? "DITOLAK ❌" : "PENDING ⏳");
-                    if (currentRole === 'uploader') {
-                        triggerPush("Update Laporan", `Laporan ${docData.area} ${statusLabel}`);
-                    }
-                }
-            });
-        }
-        
-        rawReports = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        renderReports(); 
-        isInitialLoad = false;
-    }, (error) => {
-        console.error("Koneksi bermasalah: ", error);
-    });
-}
-        // Logika Notifikasi Push
-        if (!isInitialLoad) {
-            snap.docChanges().forEach((change) => {
-                const docData = change.doc.data();
-                if (change.type === "added" && currentRole === 'viewer') {
-                    triggerPush("Tugas Baru!", `${docData.outlet}: ${docData.area}`);
-                }
-                if (change.type === "modified") {
-                    // Notifikasi jika status berubah (Approved/Rejected)
-                    const statusLabel = docData.status === 'approved' ? "DISETUJUI ✅" : "DITOLAK ❌";
-                    if (currentRole === 'uploader') {
-                        triggerPush("Update Laporan", `${docData.area} telah ${statusLabel}`);
-                    }
-                }
-            });
-        }
-        
-        // Update Data Array
-        rawReports = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        
-        if (snap.docs.length > 0) {
-            lastVisibleDoc = snap.docs[snap.docs.length - 1];
-        }
-        
-        // Tampilkan/Sembunyikan tombol Load More
-        const loadMoreBtn = document.getElementById('load-more-container');
-        if (snap.docs.length >= 50) {
-            loadMoreBtn.classList.remove('hidden');
-        } else {
-            loadMoreBtn.classList.add('hidden');
-        }
-        
-        renderReports(); 
-        isInitialLoad = false;
-    }, (error) => {
-        console.error("Snapshot error:", error);
-    });
-}
-        // --- FORM LOGIC ---
+        window.onpopstate = (e) => {
+            if (e.state && e.state.section) showSection(e.state.section, false);
+            else if (activeOutlet) showSection('list', false);
+        };
+
+        window.resetDateFilter = () => { 
+    document.getElementById('history-date-filter').value = ""; 
+    // Jika Manager, bisa reset ke SEMUA CABANG juga jika mau
+    // document.getElementById('filter-select').value = "ALL"; 
+    renderReports(); 
+};
         window.processPhoto = (input, type) => {
             const file = input.files[0]; if (!file) return;
             const reader = new FileReader();
@@ -374,72 +363,103 @@ function startListening() {
         };
 
         window.uploadReport = async () => {
-    if (!photoData.before || !photoData.after) return alert("Ambil foto sebelum dan sesudah!");
-    
-    const btn = document.getElementById('btn-submit');
-    btn.disabled = true;
-    btn.innerText = "Mengirim...";
-
-    try {
-        await addDoc(collection(db, ...COLLECTION), {
-            outlet: activeOutlet,
-            shift: activeShift,
-            area: document.getElementById('input-area').value,
-            desc: document.getElementById('input-desc').value,
-            imgBefore: photoData.before,
-            imgAfter: photoData.after,
-            status: 'pending',
-            adminComment: '',
-            timestamp: Date.now()
-        });
-
-        // Reset Form Total
-        photoData = { before: null, after: null };
-        document.getElementById('input-desc').value = "";
-        document.getElementById('preview-before').innerHTML = '<i data-lucide="camera" class="text-slate-300"></i>';
-        document.getElementById('preview-after').innerHTML = '<i data-lucide="check-circle-2" class="text-slate-300"></i>';
-        
-        lucide.createIcons();
-        alert("Laporan Terkirim!");
-        showSection('list');
-    } catch(e) {
-        console.error(e);
-        alert("Gagal kirim. Cek sinyal internet Anda.");
-    } finally {
-        btn.disabled = false;
-        btn.innerText = "SIMPAN & LAPOR";
-    }
-};
-
-        window.submitEvaluation = async () => {
-            const status = document.getElementById('status-update').value;
-            const comment = document.getElementById('admin-comment').value;
+            if (!photoData.before || !photoData.after) return alert("Ambil foto before & after!");
+            const btn = document.getElementById('btn-submit'); btn.disabled = true; btn.innerText = "Mengirim...";
             try {
-                await updateDoc(doc(db, ...COLLECTION, pendingEvalId), { status: status, adminComment: comment });
-                closeCommentModal();
-                document.getElementById('admin-comment').value = "";
-            } catch(e) { alert("Gagal memperbarui status."); }
+                await addDoc(collection(db, ...COLLECTION), {
+                    outlet: activeOutlet, shift: activeShift, area: document.getElementById('input-area').value,
+                    desc: document.getElementById('input-desc').value, imgBefore: photoData.before, imgAfter: photoData.after,
+                    status: 'pending', adminComment: '', timestamp: Date.now()
+                });
+                photoData = {before:null, after:null}; document.getElementById('input-desc').value = "";
+                document.getElementById('preview-before').innerHTML = '<i data-lucide="camera" class="text-slate-300"></i>';
+                document.getElementById('preview-after').innerHTML = '<i data-lucide="check-circle-2" class="text-slate-300"></i>';
+                lucide.createIcons(); showSection('list');
+            } catch(e) { alert("Koneksi gagal."); }
+            btn.disabled = false; btn.innerText = "SIMPAN & LAPOR";
         };
 
-        // --- RENDER & FILTERS ---
-        window.renderReports = () => {
-            const list = document.getElementById('reports-list');
-            const dateF = document.getElementById('history-date-filter').value;
-            const outletF = currentRole === 'viewer' ? document.getElementById('filter-select').value : activeOutlet;
-            list.innerHTML = "";
-            
-            const filtered = rawReports.filter(r => {
-                const matchO = (outletF === 'ALL' || r.outlet === outletF);
-                let matchD = true;
-                if (dateF) {
-                    const d = new Date(r.timestamp);
-                    const rDate = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-                    matchD = (rDate === dateF);
-                }
-                return matchO && matchD;
-            });
+        async function autoCleanOldData() {
+            if (currentRole !== 'viewer') return; 
+            const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+            const q = query(collection(db, ...COLLECTION), where('timestamp', '<', sevenDaysAgo));
+            try {
+                const snap = await getDocs(q);
+                if (snap.empty) return;
+                const batch = writeBatch(db);
+                snap.docs.forEach(d => batch.delete(d.ref));
+                await batch.commit();
+            } catch (e) { console.error("Auto-clean error:", e); }
+        }
 
-            document.getElementById('empty-state').classList.toggle('hidden', filtered.length > 0);
+        let isFirstLoad = true;
+
+async function startListening() {
+    // Gunakan query yang sesuai (Uploader vs Viewer)
+    const q = query(collection(db, ...COLLECTION), orderBy('timestamp', 'desc'), limit(10));
+    
+    onSnapshot(q, (snap) => {
+        if (!snap.empty) {
+            // PERBAIKAN: Simpan dokumen terakhir agar fungsi 'loadMoreData' tahu harus mulai dari mana
+            lastVisibleDoc = snap.docs[snap.docs.length - 1]; 
+            
+            rawReports = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            
+            // Tampilkan tombol "Muat Lebih Banyak" jika data mencapai limit (10)
+            const loadMoreBtn = document.getElementById('load-more-container');
+            if (snap.docs.length === 10) {
+                loadMoreBtn.classList.remove('hidden');
+            } else {
+                loadMoreBtn.classList.add('hidden');
+            }
+            
+            renderReports(); 
+            isFirstLoad = false;
+        }
+    });
+}
+
+        window.loadMoreData = async () => {
+            if (!lastVisibleDoc || isLoadingMore) return;
+            isLoadingMore = true; const btn = document.getElementById('btn-load-more'); btn.innerText = "Memuat...";
+            const q = query(collection(db, ...COLLECTION), orderBy('timestamp', 'desc'), startAfter(lastVisibleDoc), limit(10));
+            const snap = await getDocs(q);
+            if (!snap.empty) {
+                lastVisibleDoc = snap.docs[snap.docs.length - 1];
+                rawReports = [...rawReports, ...snap.docs.map(d => ({ id: d.id, ...d.data() }))];
+                renderReports();
+                btn.innerText = "Muat Lebih Banyak";
+            } else btn.classList.add('hidden');
+            isLoadingMore = false;
+        };
+
+        window.renderReports = () => {
+    const list = document.getElementById('reports-list');
+    const dateF = document.getElementById('history-date-filter').value; // Format: YYYY-MM-DD
+    const outletF = currentRole === 'viewer' ? document.getElementById('filter-select').value : activeOutlet;
+    
+    list.innerHTML = "";
+    
+    const filtered = rawReports.filter(r => {
+        // 1. Filter Outlet
+        const matchO = (outletF === 'ALL' || r.outlet === outletF);
+        
+        // 2. Filter Tanggal (Perbaikan Logika)
+        let matchD = true;
+        if (dateF) {
+            const d = new Date(r.timestamp);
+            // Format data dari database menjadi YYYY-MM-DD agar sama dengan format input date
+            const rDate = d.getFullYear() + '-' + 
+                         String(d.getMonth() + 1).padStart(2, '0') + '-' + 
+                         String(d.getDate()).padStart(2, '0');
+            matchD = (rDate === dateF);
+        }
+        
+        return matchO && matchD;
+    });
+
+    // Jika filter menyebabkan data kosong, tampilkan pesan Empty State
+    document.getElementById('empty-state').classList.toggle('hidden', filtered.length > 0);
             let lastD = "";
             filtered.forEach(r => {
                 const dateObj = new Date(r.timestamp);
@@ -470,35 +490,25 @@ function startListening() {
             lucide.createIcons();
         };
 
-        window.loadMoreData = async () => {
-            if (!lastVisibleDoc || isLoadingMore) return;
-            isLoadingMore = true; const btn = document.getElementById('btn-load-more'); btn.innerText = "Memuat...";
-            const q = query(collection(db, ...COLLECTION), orderBy('timestamp', 'desc'), startAfter(lastVisibleDoc), limit(10));
-            const snap = await getDocs(q);
-            if (!snap.empty) {
-                lastVisibleDoc = snap.docs[snap.docs.length - 1];
-                rawReports = [...rawReports, ...snap.docs.map(d => ({ id: d.id, ...d.data() }))];
-                renderReports();
-                btn.innerText = "Muat Lebih Banyak";
-            } else btn.classList.add('hidden');
-            isLoadingMore = false;
-        };
-
-        window.showSection = (s, push = true) => {
-            const isL = s === 'list';
-            document.getElementById('section-list').classList.toggle('hidden', !isL);
-            document.getElementById('section-form').classList.toggle('hidden', isL);
-            document.getElementById('btn-list').className = isL ? 'flex-1 py-3 rounded-xl font-bold text-sm bg-indigo-600 text-white shadow-md' : 'flex-1 py-3 rounded-xl font-bold text-sm text-slate-400';
-            document.getElementById('btn-form').className = !isL ? 'flex-1 py-3 rounded-xl font-bold text-sm bg-indigo-600 text-white shadow-md' : 'flex-1 py-3 rounded-xl font-bold text-sm text-slate-400';
-            if (push) history.pushState({ section: s }, "");
-        };
-
         window.deleteReport = async (id) => { if(confirm("Hapus?")) await deleteDoc(doc(db, ...COLLECTION, id)); };
         window.openEvaluation = (id) => { pendingEvalId = id; document.getElementById('comment-modal').classList.remove('hidden'); };
         window.closeCommentModal = () => document.getElementById('comment-modal').classList.add('hidden');
-        window.zoom = (s) => { document.getElementById('modal-img').src = s; document.getElementById('image-modal').classList.remove('hidden'); };
-        window.resetDateFilter = () => { document.getElementById('history-date-filter').value = ""; renderReports(); };
+        window.submitEvaluation = async () => {
+    const status = document.getElementById('status-update').value;
+    const comment = document.getElementById('admin-comment').value;
 
+    try {
+        await updateDoc(doc(db, ...COLLECTION, pendingEvalId), { 
+            status: status, 
+            adminComment: comment 
+        });
+        closeCommentModal(); //
+        alert("Evaluasi terkirim ke petugas!");
+    } catch(e) { 
+        alert("Gagal memperbarui status."); 
+    }
+};
+        window.zoom = (s) => { document.getElementById('modal-img').src = s; document.getElementById('image-modal').classList.remove('hidden'); };
         lucide.createIcons();
     </script>
 </body>
