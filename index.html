@@ -96,6 +96,13 @@
                         <i data-lucide="image-off" class="mx-auto w-12 h-12 text-slate-200 mb-2"></i>
                         <p class="text-slate-300 font-bold uppercase text-xs tracking-widest">Tidak Ada Laporan Ditemukan</p>
                     </div>
+                    <div id="reports-list"></div>
+
+<div id="load-more-container" class="hidden mt-6 mb-10 text-center">
+    <button id="btn-load-more" onclick="loadMoreData()" class="px-6 py-3 bg-white border border-slate-200 text-slate-500 rounded-2xl font-bold text-xs uppercase tracking-widest shadow-sm hover:bg-slate-50">
+        Muat Lebih Banyak
+    </button>
+</div>
                 </div>
 
                 <!-- Form Section -->
@@ -148,7 +155,11 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-        import { initializeFirestore, collection, addDoc, onSnapshot, query, orderBy, doc, deleteDoc, updateDoc, enableIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { 
+    initializeFirestore, collection, addDoc, onSnapshot, 
+    query, orderBy, doc, deleteDoc, updateDoc, 
+    enableIndexedDbPersistence, limit, startAfter, getDocs, writeBatch // Tambahkan ini
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAxcZqjaKLKlZTs8oJ5ZUive7A2N18pom0",
@@ -268,13 +279,74 @@
             btn.disabled = false; btn.innerText = "SIMPAN & LAPOR";
         };
 
-        function startListening() {
-            const q = query(collection(db, ...COLLECTION), orderBy('timestamp', 'desc'));
-            onSnapshot(q, (snap) => {
-                rawReports = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-                renderReports();
-            });
+        let lastVisibleDoc = null; // Untuk menyimpan posisi data terakhir
+let isLoadingMore = false;
+
+// 1. Fungsi Hapus Otomatis (> 7 hari)
+async function autoCleanOldData() {
+    if (currentRole !== 'viewer') return; 
+    const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+    const q = query(collection(db, ...COLLECTION), where('timestamp', '<', sevenDaysAgo));
+    try {
+        const snapshot = await getDocs(q);
+        if (snapshot.empty) return;
+        const batch = writeBatch(db);
+        snapshot.docs.forEach(doc => batch.delete(doc.ref));
+        await batch.commit();
+    } catch (e) { console.error("Auto-clean error:", e); }
+}
+
+// 2. Fungsi Load Data dengan Limit
+async function startListening() {
+    autoCleanOldData(); // Jalankan pembersihan saat mulai
+    const q = query(
+        collection(db, ...COLLECTION), 
+        orderBy('timestamp', 'desc'), 
+        limit(10) // Hanya ambil 10 data pertama agar ringan
+    );
+    
+    onSnapshot(q, (snap) => {
+        if (!snap.empty) {
+            lastVisibleDoc = snap.docs[snap.docs.length - 1];
+            rawReports = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            renderReports();
+            toggleLoadMoreButton(true);
         }
+    });
+}
+
+// 3. Fungsi Muat Lebih Banyak
+window.loadMoreData = async () => {
+    if (!lastVisibleDoc || isLoadingMore) return;
+    isLoadingMore = true;
+    const btn = document.getElementById('btn-load-more');
+    btn.innerText = "Memuat...";
+
+    const q = query(
+        collection(db, ...COLLECTION),
+        orderBy('timestamp', 'desc'),
+        startAfter(lastVisibleDoc),
+        limit(10)
+    );
+
+    const snap = await getDocs(q);
+    if (!snap.empty) {
+        lastVisibleDoc = snap.docs[snap.docs.length - 1];
+        const nextData = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        rawReports = [...rawReports, ...nextData];
+        renderReports();
+        btn.innerText = "Muat Lebih Banyak";
+    } else {
+        btn.classList.add('hidden');
+    }
+    isLoadingMore = false;
+};
+
+function toggleLoadMoreButton(show) {
+    const container = document.getElementById('load-more-container');
+    if (show) container.classList.remove('hidden');
+    else container.classList.add('hidden');
+}
 
         window.renderReports = () => {
             const list = document.getElementById('reports-list');
