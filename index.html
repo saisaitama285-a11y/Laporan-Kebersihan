@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>CLEANLOG PRO - Fix Image & History</title>
+    <title>CLEANLOG PRO - Fix Session & History</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
@@ -20,13 +20,11 @@
 <body class="text-slate-900">
 
     <div id="app">
-        <!-- Loading Screen -->
         <div id="loading-screen" class="fixed inset-0 bg-white z-[100] flex flex-col items-center justify-center">
             <div class="animate-spin rounded-full h-10 w-10 border-4 border-indigo-600 border-t-transparent"></div>
             <p class="mt-4 font-bold text-slate-400 text-[10px] tracking-[0.3em] uppercase">Memuat Data...</p>
         </div>
 
-        <!-- Role Screen -->
         <div id="role-screen" class="hidden min-h-screen flex items-center justify-center p-6">
             <div class="bg-white p-8 rounded-[2.5rem] shadow-2xl max-w-sm w-full text-center border border-slate-100">
                 <div class="w-20 h-20 bg-indigo-600 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-xl shadow-indigo-200">
@@ -35,16 +33,15 @@
                 <h1 class="text-2xl font-black text-slate-800 mb-1 italic">CLEANLOG <span class="text-indigo-600">PRO</span></h1>
                 <p class="text-slate-400 mb-8 text-[10px] font-bold uppercase tracking-widest">Shift & History System</p>
                 <div class="space-y-3">
-                    <button onclick="openTokenModal('uploader')" class="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold flex items-center justify-center gap-3">Login Petugas</button>
-                    <button onclick="openTokenModal('viewer')" class="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold flex items-center justify-center gap-3">Dashboard Manager</button>
+                    <button onclick="openTokenModal('uploader')" class="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold">Login Petugas</button>
+                    <button onclick="openTokenModal('viewer')" class="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold">Dashboard Manager</button>
                 </div>
             </div>
         </div>
 
-        <!-- Token Modal -->
         <div id="token-modal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6">
             <div class="bg-white p-8 rounded-[2rem] shadow-2xl max-w-sm w-full">
-                <h2 class="text-lg font-black text-slate-800 mb-2 uppercase italic text-center italic">Token Akses</h2>
+                <h2 class="text-lg font-black text-slate-800 mb-2 uppercase text-center italic">Token Akses</h2>
                 <div id="shift-warning" class="hidden mb-4 p-3 bg-red-50 text-red-600 rounded-xl text-[10px] font-bold text-center border border-red-100"></div>
                 <input type="password" id="token-input" inputmode="numeric" placeholder="••••" class="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-center text-3xl font-black mb-6 tracking-[0.4em] outline-none">
                 <button onclick="validateToken()" class="w-full py-4 bg-indigo-600 text-white rounded-2xl font-black">MASUK</button>
@@ -52,24 +49,23 @@
             </div>
         </div>
 
-        <!-- Main Screen -->
         <div id="main-screen" class="hidden min-h-screen pb-24">
             <header class="bg-white border-b border-slate-100 sticky top-0 z-30 px-6 py-4 flex justify-between items-center shadow-sm">
                 <div>
                     <h2 id="display-outlet" class="font-black text-indigo-600 text-sm italic uppercase leading-none">OUTLET</h2>
                     <p id="display-shift" class="text-[10px] font-bold text-slate-400 uppercase mt-1 tracking-widest">SHIFT</p>
                 </div>
-                <button onclick="location.reload()" class="p-2 bg-slate-50 rounded-xl text-slate-400"><i data-lucide="power" class="w-5 h-5"></i></button>
+                <button onclick="logout()" class="p-2 bg-slate-50 rounded-xl text-slate-400">
+                    <i data-lucide="power" class="w-5 h-5"></i>
+                </button>
             </header>
 
             <main class="max-w-xl mx-auto p-6">
-                <!-- Navigation -->
                 <div id="uploader-nav" class="hidden flex bg-white p-1 rounded-2xl border border-slate-100 mb-4 shadow-sm">
-                    <button onclick="showSection('list')" id="btn-list" class="flex-1 py-3 rounded-xl font-bold text-sm bg-indigo-600 text-white">Riwayat</button>
-                    <button onclick="showSection('form')" id="btn-form" class="flex-1 py-3 rounded-xl font-bold text-sm text-slate-400">+ Lapor</button>
+                    <button onclick="showSection('list')" id="btn-list" class="flex-1 py-3 rounded-xl font-bold text-sm bg-indigo-600 text-white shadow-md">Riwayat</button>
+                    <button onclick="showSection('form')" id="btn-form" class="flex-1 py-3 rounded-xl font-bold text-sm text-slate-400"> + Lapor</button>
                 </div>
 
-                <!-- Filters -->
                 <div id="filter-area" class="space-y-3 mb-6 animate-fade-in">
                     <div id="viewer-nav" class="hidden bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
                         <label class="text-[9px] font-black text-slate-400 uppercase mb-2 block tracking-widest">Pilih Cabang</label>
@@ -89,23 +85,19 @@
                     </div>
                 </div>
 
-                <!-- Reports List -->
                 <div id="section-list">
                     <div id="reports-list"></div>
                     <div id="empty-state" class="hidden text-center py-20">
                         <i data-lucide="image-off" class="mx-auto w-12 h-12 text-slate-200 mb-2"></i>
-                        <p class="text-slate-300 font-bold uppercase text-xs tracking-widest">Tidak Ada Laporan Ditemukan</p>
+                        <p class="text-slate-300 font-bold uppercase text-xs tracking-widest">Tidak Ada Laporan</p>
                     </div>
-                    <div id="reports-list"></div>
-
-<div id="load-more-container" class="hidden mt-6 mb-10 text-center">
-    <button id="btn-load-more" onclick="loadMoreData()" class="px-6 py-3 bg-white border border-slate-200 text-slate-500 rounded-2xl font-bold text-xs uppercase tracking-widest shadow-sm hover:bg-slate-50">
-        Muat Lebih Banyak
-    </button>
-</div>
+                    <div id="load-more-container" class="hidden mt-6 mb-10 text-center">
+                        <button id="btn-load-more" onclick="loadMoreData()" class="px-6 py-3 bg-white border border-slate-200 text-slate-500 rounded-2xl font-bold text-xs uppercase tracking-widest shadow-sm">
+                            Muat Lebih Banyak
+                        </button>
+                    </div>
                 </div>
 
-                <!-- Form Section -->
                 <div id="section-form" class="hidden">
                     <div class="bg-white rounded-[2rem] p-6 border border-slate-100 shadow-xl space-y-4">
                         <select id="input-area" class="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-sm">
@@ -129,7 +121,6 @@
             </main>
         </div>
 
-        <!-- Evaluation Modal -->
         <div id="comment-modal" class="hidden fixed inset-0 z-[150] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-6">
             <div class="bg-white p-6 rounded-[2rem] max-w-sm w-full">
                 <h2 class="font-black text-slate-800 mb-4 uppercase text-center italic">Evaluasi Manager</h2>
@@ -138,7 +129,7 @@
                     <option value="approved">✅ Disetujui</option>
                     <option value="rejected">❌ Tolak</option>
                 </select>
-                <textarea id="admin-comment" placeholder="Berikan saran atau komentar..." class="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm min-h-[100px] mb-4 outline-none"></textarea>
+                <textarea id="admin-comment" placeholder="Berikan saran..." class="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm min-h-[100px] mb-4 outline-none"></textarea>
                 <div class="flex gap-2">
                     <button onclick="closeCommentModal()" class="flex-1 py-3 bg-slate-100 rounded-xl font-bold">Batal</button>
                     <button onclick="submitEvaluation()" class="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold">Simpan</button>
@@ -146,7 +137,6 @@
             </div>
         </div>
 
-        <!-- Image Full Screen -->
         <div id="image-modal" class="hidden fixed inset-0 z-[200] bg-black/95 flex items-center justify-center p-4" onclick="this.classList.add('hidden')">
             <img id="modal-img" src="" class="max-w-full max-h-[90vh] rounded-lg">
         </div>
@@ -156,10 +146,10 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { 
-    initializeFirestore, collection, addDoc, onSnapshot, 
-    query, orderBy, doc, deleteDoc, updateDoc, 
-    enableIndexedDbPersistence, limit, startAfter, getDocs, writeBatch // Tambahkan ini
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+            initializeFirestore, collection, addDoc, onSnapshot, 
+            query, orderBy, doc, deleteDoc, updateDoc, 
+            enableIndexedDbPersistence, limit, startAfter, getDocs, writeBatch, where 
+        } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAxcZqjaKLKlZTs8oJ5ZUive7A2N18pom0",
@@ -175,7 +165,7 @@
         const db = initializeFirestore(app, { experimentalForceLongPolling: true });
         enableIndexedDbPersistence(db).catch(() => {});
 
-        const APP_ID = 'cleanlog-approval-v3'; // Tetap di V3 agar sinkron dengan data sebelumnya
+        const APP_ID = 'cleanlog-approval-v3';
         const COLLECTION = ['artifacts', APP_ID, 'public', 'data', 'reports'];
         const SHIFT_HOURS = { "Pagi": { start: "05:30", end: "14:00" }, "Siang": { start: "14:00", end: "22:10" } };
         const TOKENS = {
@@ -191,49 +181,155 @@
         };
 
         let activeOutlet = "", activeShift = "", currentRole = "", pendingEvalId = "", rawReports = [], photoData = { before: null, after: null }, loginType = 'uploader'; 
+        let lastVisibleDoc = null;
+        let isLoadingMore = false;
+
+        // LOGIKA AUTO-LOGIN & HISTORY
+        window.logout = () => {
+            if(confirm("Keluar dari aplikasi?")) {
+                localStorage.removeItem('cleanlog_session');
+                location.reload();
+            }
+        };
+
+        function applyLoginState() {
+            document.getElementById('role-screen').classList.add('hidden');
+            document.getElementById('main-screen').classList.remove('hidden');
+            document.getElementById('display-outlet').innerText = activeOutlet;
+            document.getElementById('display-shift').innerText = "SHIFT: " + activeShift;
+            if (currentRole === 'uploader') {
+                document.getElementById('uploader-nav').classList.remove('hidden');
+                showSection('list', false);
+            } else {
+                document.getElementById('viewer-nav').classList.remove('hidden');
+            }
+            startListening();
+        }
 
         onAuthStateChanged(auth, (u) => {
             if (u) {
                 document.getElementById('loading-screen').classList.add('hidden');
+                const savedSession = localStorage.getItem('cleanlog_session');
+                if (savedSession) {
+                    const session = JSON.parse(savedSession);
+                    if (Date.now() < session.expiry) {
+                        activeOutlet = session.outlet; activeShift = session.shift; currentRole = session.role;
+                        applyLoginState();
+                        history.replaceState({ section: 'list' }, "");
+                        return;
+                    } else { localStorage.removeItem('cleanlog_session'); }
+                }
+                // Listener khusus petugas untuk memantau perubahan status
+function startPetugasListener() {
+    if (currentRole !== 'uploader') return;
+
+    const qStatus = query(
+        collection(db, ...COLLECTION), 
+        where("outlet", "==", activeOutlet),
+        where("status", "!=", "pending")
+    );
+
+    onSnapshot(qStatus, (snap) => {
+        snap.docChanges().forEach((change) => {
+            if (change.type === "modified") {
+                const data = change.doc.data();
+                new Notification("Update Laporan!", {
+                    body: `Laporan area ${data.area} telah ${data.status.toUpperCase()}`,
+                    icon: "https://cdn-icons-png.flaticon.com/512/190/190411.png"
+                });
+            }
+        });
+    });
+}
                 document.getElementById('role-screen').classList.remove('hidden');
-            } else signInAnonymously(auth);
+            } else { signInAnonymously(auth); }
         });
 
         window.openTokenModal = (t) => { loginType = t; document.getElementById('token-modal').classList.remove('hidden'); };
         window.closeTokenModal = () => document.getElementById('token-modal').classList.add('hidden');
         
-        window.validateToken = () => {
-            const input = document.getElementById('token-input').value;
-            const data = TOKENS[loginType][input];
-            if (data) {
-                if (loginType === 'uploader') {
-                    const now = new Date();
-                    const currentMin = now.getHours() * 60 + now.getMinutes();
-                    const [hS, mS] = SHIFT_HOURS[data.s].start.split(':').map(Number);
-                    const [hE, mE] = SHIFT_HOURS[data.s].end.split(':').map(Number);
-                    if (currentMin < (hS*60+mS) || currentMin > (hE*60+mE)) {
-                        const warn = document.getElementById('shift-warning');
-                        warn.innerText = `Belum jam Shift ${data.s} (${SHIFT_HOURS[data.s].start} - ${SHIFT_HOURS[data.s].end})`;
-                        warn.classList.remove('hidden'); return;
-                    }
-                }
-                activeOutlet = data.o; activeShift = data.s; currentRole = loginType;
-                document.getElementById('role-screen').classList.add('hidden');
-                document.getElementById('main-screen').classList.remove('hidden');
-                document.getElementById('display-outlet').innerText = activeOutlet;
-                document.getElementById('display-shift').innerText = "SHIFT: " + activeShift;
-                if (currentRole === 'uploader') document.getElementById('uploader-nav').classList.remove('hidden');
-                else document.getElementById('viewer-nav').classList.remove('hidden');
-                closeTokenModal(); startListening();
-            } else alert("Token tidak valid!");
-        };
+        window.validateToken = async () => {
+    const input = document.getElementById('token-input').value;
+    const warn = document.getElementById('shift-warning');
+    
+    // 1. Cek token di kategori yang dipilih
+    const data = TOKENS[loginType][input];
+    
+    if (data) {
+        // Validasi Jam Shift untuk Petugas
+        if (loginType === 'uploader') {
+            const now = new Date();
+            const currentMin = now.getHours() * 60 + now.getMinutes();
+            const [hS, mS] = SHIFT_HOURS[data.s].start.split(':').map(Number);
+            const [hE, mE] = SHIFT_HOURS[data.s].end.split(':').map(Number);
+            
+            if (currentMin < (hS*60+mS) || currentMin > (hE*60+mE)) {
+                warn.innerText = "TOKEN SALAH (DI LUAR JAM SHIFT)";
+                warn.classList.remove('hidden');
+                return;
+            } 
+        }
+        
+        // Fungsi meminta izin notifikasi untuk semua user
+async function requestNotification() {
+    if ("Notification" in window && Notification.permission !== "granted") {
+        await Notification.requestPermission();
+    }
+}
 
-        window.showSection = (s) => {
+// Jalankan saat login berhasil
+function onLoginSuccess() {
+    requestNotification();
+    applyLoginState(); //
+}
+
+        // Simpan Session jika benar
+        activeOutlet = data.o; 
+        activeShift = data.s; 
+        currentRole = loginType;
+        const sessionData = { 
+            outlet: data.o, 
+            shift: data.s, 
+            role: loginType, 
+            expiry: Date.now() + (12 * 60 * 60 * 1000) 
+        };
+        localStorage.setItem('cleanlog_session', JSON.stringify(sessionData));
+        applyLoginState();
+        closeTokenModal();
+    } else {
+        // 2. Jika Salah: Tampilkan pesan sederhana di UI
+        warn.innerText = "TOKEN SALAH";
+        warn.classList.remove('hidden');
+
+        // 3. Kirim Alert ke Firebase untuk dipantau Manager
+        try {
+            const { collection, addDoc } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js");
+            await addDoc(collection(db, "login_alerts"), {
+                attemptedToken: input,
+                targetRole: loginType,
+                timestamp: Date.now(),
+                deviceInfo: navigator.userAgent,
+                status: "FAILED_ATTEMPT"
+            });
+        } catch (e) {
+            console.error("Gagal mengirim alert");
+        }
+        
+        document.getElementById('token-input').value = "";
+    }
+};
+        window.showSection = (s, push = true) => {
             const isL = s === 'list';
             document.getElementById('section-list').classList.toggle('hidden', !isL);
             document.getElementById('section-form').classList.toggle('hidden', isL);
             document.getElementById('btn-list').className = isL ? 'flex-1 py-3 rounded-xl font-bold text-sm bg-indigo-600 text-white shadow-md' : 'flex-1 py-3 rounded-xl font-bold text-sm text-slate-400';
             document.getElementById('btn-form').className = !isL ? 'flex-1 py-3 rounded-xl font-bold text-sm bg-indigo-600 text-white shadow-md' : 'flex-1 py-3 rounded-xl font-bold text-sm text-slate-400';
+            if (push) history.pushState({ section: s }, "");
+        };
+
+        window.onpopstate = (e) => {
+            if (e.state && e.state.section) showSection(e.state.section, false);
+            else if (activeOutlet) showSection('list', false);
         };
 
         window.resetDateFilter = () => { document.getElementById('history-date-filter').value = ""; renderReports(); };
@@ -245,16 +341,14 @@
                 const img = new Image();
                 img.onload = () => {
                     const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d');
-                    const scale = 800 / img.width;
-                    canvas.width = 800; canvas.height = img.height * scale;
+                    const maxWidth = 600; const scale = maxWidth / img.width;
+                    canvas.width = maxWidth; canvas.height = img.height * scale;
                     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                    
                     const now = new Date();
-                    ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillRect(0, canvas.height-40, canvas.width, 40);
-                    ctx.fillStyle = "white"; ctx.font = "bold 16px sans-serif";
-                    ctx.fillText(`${activeOutlet} | ${now.toLocaleString('id-ID')}`, 15, canvas.height-15);
-                    
-                    photoData[type] = canvas.toDataURL('image/jpeg', 0.8);
+                    ctx.fillStyle = "rgba(0,0,0,0.6)"; ctx.fillRect(0, canvas.height-30, canvas.width, 30);
+                    ctx.fillStyle = "white"; ctx.font = "bold 12px sans-serif";
+                    ctx.fillText(`${activeOutlet} | ${now.toLocaleString('id-ID')}`, 10, canvas.height-10);
+                    photoData[type] = canvas.toDataURL('image/jpeg', 0.5);
                     document.getElementById(`preview-${type}`).innerHTML = `<img src="${photoData[type]}" class="w-full h-full object-cover">`;
                 };
                 img.src = e.target.result;
@@ -275,85 +369,71 @@
                 document.getElementById('preview-before').innerHTML = '<i data-lucide="camera" class="text-slate-300"></i>';
                 document.getElementById('preview-after').innerHTML = '<i data-lucide="check-circle-2" class="text-slate-300"></i>';
                 lucide.createIcons(); showSection('list');
-            } catch(e) { alert("Koneksi gagal, coba lagi."); }
+            } catch(e) { alert("Koneksi gagal."); }
             btn.disabled = false; btn.innerText = "SIMPAN & LAPOR";
         };
 
-        let lastVisibleDoc = null; // Untuk menyimpan posisi data terakhir
-let isLoadingMore = false;
+        async function autoCleanOldData() {
+            if (currentRole !== 'viewer') return; 
+            const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+            const q = query(collection(db, ...COLLECTION), where('timestamp', '<', sevenDaysAgo));
+            try {
+                const snap = await getDocs(q);
+                if (snap.empty) return;
+                const batch = writeBatch(db);
+                snap.docs.forEach(d => batch.delete(d.ref));
+                await batch.commit();
+            } catch (e) { console.error("Auto-clean error:", e); }
+        }
 
-// 1. Fungsi Hapus Otomatis (> 7 hari)
-async function autoCleanOldData() {
-    if (currentRole !== 'viewer') return; 
-    const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
-    const q = query(collection(db, ...COLLECTION), where('timestamp', '<', sevenDaysAgo));
-    try {
-        const snapshot = await getDocs(q);
-        if (snapshot.empty) return;
-        const batch = writeBatch(db);
-        snapshot.docs.forEach(doc => batch.delete(doc.ref));
-        await batch.commit();
-    } catch (e) { console.error("Auto-clean error:", e); }
-}
+        let isFirstLoad = true;
 
-// 2. Fungsi Load Data dengan Limit
 async function startListening() {
-    autoCleanOldData(); // Jalankan pembersihan saat mulai
-    const q = query(
-        collection(db, ...COLLECTION), 
-        orderBy('timestamp', 'desc'), 
-        limit(10) // Hanya ambil 10 data pertama agar ringan
-    );
+    const q = query(collection(db, ...COLLECTION), orderBy('timestamp', 'desc'), limit(10));
     
     onSnapshot(q, (snap) => {
         if (!snap.empty) {
-            lastVisibleDoc = snap.docs[snap.docs.length - 1];
+            const latest = snap.docs[0].data();
+            const latestId = snap.docs[0].id;
+
+            // Notifikasi untuk Manager jika ada laporan baru
+            if (!isFirstLoad && currentRole === 'viewer') {
+                const alreadyExists = rawReports.some(r => r.id === latestId);
+                if (!alreadyExists) {
+                    new Notification("Laporan Baru!", {
+                        body: `${latest.outlet} melaporkan area ${latest.area}`,
+                        icon: "https://cdn-icons-png.flaticon.com/512/1048/1048953.png"
+                    });
+                }
+            }
+
+            // Simpan data dan render
             rawReports = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-            renderReports();
-            toggleLoadMoreButton(true);
+            renderReports(); 
+            isFirstLoad = false;
         }
     });
 }
 
-// 3. Fungsi Muat Lebih Banyak
-window.loadMoreData = async () => {
-    if (!lastVisibleDoc || isLoadingMore) return;
-    isLoadingMore = true;
-    const btn = document.getElementById('btn-load-more');
-    btn.innerText = "Memuat...";
-
-    const q = query(
-        collection(db, ...COLLECTION),
-        orderBy('timestamp', 'desc'),
-        startAfter(lastVisibleDoc),
-        limit(10)
-    );
-
-    const snap = await getDocs(q);
-    if (!snap.empty) {
-        lastVisibleDoc = snap.docs[snap.docs.length - 1];
-        const nextData = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        rawReports = [...rawReports, ...nextData];
-        renderReports();
-        btn.innerText = "Muat Lebih Banyak";
-    } else {
-        btn.classList.add('hidden');
-    }
-    isLoadingMore = false;
-};
-
-function toggleLoadMoreButton(show) {
-    const container = document.getElementById('load-more-container');
-    if (show) container.classList.remove('hidden');
-    else container.classList.add('hidden');
-}
+        window.loadMoreData = async () => {
+            if (!lastVisibleDoc || isLoadingMore) return;
+            isLoadingMore = true; const btn = document.getElementById('btn-load-more'); btn.innerText = "Memuat...";
+            const q = query(collection(db, ...COLLECTION), orderBy('timestamp', 'desc'), startAfter(lastVisibleDoc), limit(10));
+            const snap = await getDocs(q);
+            if (!snap.empty) {
+                lastVisibleDoc = snap.docs[snap.docs.length - 1];
+                rawReports = [...rawReports, ...snap.docs.map(d => ({ id: d.id, ...d.data() }))];
+                renderReports();
+                btn.innerText = "Muat Lebih Banyak";
+            } else btn.classList.add('hidden');
+            isLoadingMore = false;
+        };
 
         window.renderReports = () => {
             const list = document.getElementById('reports-list');
             const dateF = document.getElementById('history-date-filter').value;
             const outletF = currentRole === 'viewer' ? document.getElementById('filter-select').value : activeOutlet;
             list.innerHTML = "";
-            
             const filtered = rawReports.filter(r => {
                 const matchO = (outletF === 'ALL' || r.outlet === outletF);
                 let matchD = true;
@@ -364,66 +444,55 @@ function toggleLoadMoreButton(show) {
                 }
                 return matchO && matchD;
             });
-
             document.getElementById('empty-state').classList.toggle('hidden', filtered.length > 0);
             let lastD = "";
             filtered.forEach(r => {
                 const dateObj = new Date(r.timestamp);
                 const dateHeader = dateObj.toLocaleDateString('id-ID', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
-                
-                if (dateHeader !== lastD) {
-                    list.innerHTML += `<div class="date-divider"><span class="date-label">${dateHeader}</span></div>`;
-                    lastD = dateHeader;
-                }
-
+                if (dateHeader !== lastD) { list.innerHTML += `<div class="date-divider"><span class="date-label">${dateHeader}</span></div>`; lastD = dateHeader; }
                 const stColor = r.status === 'approved' ? 'bg-green-100 text-green-600' : (r.status === 'rejected' ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600');
-                
                 list.innerHTML += `
                     <div class="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden mb-6 animate-fade-in">
                         <div class="px-5 py-4 flex justify-between items-center border-b border-slate-50">
                             <div>
                                 <span class="status-badge ${stColor}">${r.status}</span>
-                                <h4 class="text-xs font-black uppercase mt-1 leading-none">${r.area}</h4>
-                                <p class="text-[8px] font-bold text-slate-400 uppercase mt-1">${r.outlet} • ${r.shift} • ${dateObj.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})}</p>
+                                <h4 class="text-xs font-black uppercase mt-1">${r.area}</h4>
+                                <p class="text-[8px] font-bold text-slate-400 uppercase mt-1">${r.outlet} • ${r.shift}</p>
                             </div>
-                            ${currentRole === 'uploader' && r.status === 'pending' ? `<button onclick="deleteReport('${r.id}')" class="p-2 text-slate-200 hover:text-red-500 transition-colors"><i data-lucide="trash-2" class="w-4 h-4"></i></button>` : ''}
+                            ${currentRole === 'uploader' && r.status === 'pending' ? `<button onclick="deleteReport('${r.id}')" class="p-2 text-slate-200"><i data-lucide="trash-2" class="w-4 h-4"></i></button>` : ''}
                         </div>
                         <div class="grid grid-cols-2 gap-0.5 bg-slate-100">
-                            <img src="${r.imgBefore}" onclick="zoom('${r.imgBefore}')" class="aspect-square object-cover bg-slate-200" loading="lazy">
-                            <img src="${r.imgAfter}" onclick="zoom('${r.imgAfter}')" class="aspect-square object-cover bg-slate-200" loading="lazy">
+                            <img src="${r.imgBefore}" onclick="zoom('${r.imgBefore}')" class="aspect-square object-cover bg-slate-200">
+                            <img src="${r.imgAfter}" onclick="zoom('${r.imgAfter}')" class="aspect-square object-cover bg-slate-200">
                         </div>
                         <div class="p-4">
-                            <p class="text-[10px] text-slate-500 italic mb-2">"${r.desc || 'Tidak ada catatan.'}"</p>
-                            ${r.adminComment ? `
-                                <div class="bg-indigo-50 p-3 rounded-xl border-l-2 border-indigo-400 mb-2">
-                                    <p class="text-[8px] font-black text-indigo-600 uppercase mb-1">Catatan Manager:</p>
-                                    <p class="text-[10px] text-slate-600 font-semibold">${r.adminComment}</p>
-                                </div>
-                            ` : ''}
-                            ${currentRole === 'viewer' ? `
-                                <button onclick="openEvaluation('${r.id}')" class="w-full py-3 bg-slate-900 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest shadow-md">Beri Evaluasi</button>
-                            ` : ''}
+                            <p class="text-[10px] text-slate-500 italic mb-2">"${r.desc || 'Tanpa catatan'}"</p>
+                            ${r.adminComment ? `<div class="bg-indigo-50 p-3 rounded-xl border-l-2 border-indigo-400 text-[10px] font-semibold text-slate-600">${r.adminComment}</div>` : ''}
+                            ${currentRole === 'viewer' ? `<button onclick="openEvaluation('${r.id}')" class="w-full mt-2 py-3 bg-slate-900 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest">Beri Evaluasi</button>` : ''}
                         </div>
                     </div>`;
             });
             lucide.createIcons();
         };
 
-        window.deleteReport = async (id) => { if(confirm("Hapus laporan ini secara permanen?")) await deleteDoc(doc(db, ...COLLECTION, id)); };
+        window.deleteReport = async (id) => { if(confirm("Hapus?")) await deleteDoc(doc(db, ...COLLECTION, id)); };
         window.openEvaluation = (id) => { pendingEvalId = id; document.getElementById('comment-modal').classList.remove('hidden'); };
         window.closeCommentModal = () => document.getElementById('comment-modal').classList.add('hidden');
         window.submitEvaluation = async () => {
-            const btn = document.querySelector('#comment-modal button:last-child');
-            btn.disabled = true;
-            try {
-                await updateDoc(doc(db, ...COLLECTION, pendingEvalId), { 
-                    status: document.getElementById('status-update').value, 
-                    adminComment: document.getElementById('admin-comment').value 
-                });
-                closeCommentModal();
-            } catch(e) { alert("Gagal memperbarui status."); }
-            btn.disabled = false;
-        };
+    const status = document.getElementById('status-update').value;
+    const comment = document.getElementById('admin-comment').value;
+
+    try {
+        await updateDoc(doc(db, ...COLLECTION, pendingEvalId), { 
+            status: status, 
+            adminComment: comment 
+        });
+        closeCommentModal(); //
+        alert("Evaluasi terkirim ke petugas!");
+    } catch(e) { 
+        alert("Gagal memperbarui status."); 
+    }
+};
         window.zoom = (s) => { document.getElementById('modal-img').src = s; document.getElementById('image-modal').classList.remove('hidden'); };
         lucide.createIcons();
     </script>
