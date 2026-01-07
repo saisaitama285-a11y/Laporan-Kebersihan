@@ -144,25 +144,30 @@
 
 <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-        import { 
-            initializeFirestore, collection, addDoc, onSnapshot, 
-            query, orderBy, doc, deleteDoc, updateDoc, 
-            enableIndexedDbPersistence, limit, startAfter, getDocs, writeBatch, where 
-        } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { 
+    initializeFirestore, 
+    persistentLocalCache, 
+    persistentMultipleTabManager,
+    collection, addDoc, onSnapshot, query, orderBy, doc, deleteDoc, updateDoc, where, limit
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyAxcZqjaKLKlZTs8oJ5ZUive7A2N18pom0",
-            authDomain: "general-cleaning-7eda5.firebaseapp.com",
-            projectId: "general-cleaning-7eda5",
-            storageBucket: "general-cleaning-7eda5.firebasestorage.app",
-            messagingSenderId: "439718893376",
-            appId: "1:439718893376:web:499d021592a97f14d7cca5"
-        };
+const firebaseConfig = {
+    apiKey: "AIzaSyAxcZqjaKLKlZTs8oJ5ZUive7A2N18pom0",
+    authDomain: "general-cleaning-7eda5.firebaseapp.com",
+    projectId: "general-cleaning-7eda5",
+    storageBucket: "general-cleaning-7eda5.firebasestorage.app",
+    messagingSenderId: "439718893376",
+    appId: "1:439718893376:web:499d021592a97f14d7cca5"
+};
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
-        const db = initializeFirestore(app, { experimentalForceLongPolling: true });
+        const db = initializeFirestore(app, {
+    localCache: persistentLocalCache({
+        tabManager: persistentMultipleTabManager()
+    })
+});
         // Ganti baris persistence lama dengan ini
 enableIndexedDbPersistence(db).catch((err) => {
     if (err.code == 'failed-precondition') {
@@ -200,14 +205,10 @@ enableIndexedDbPersistence(db).catch((err) => {
         }
 
         function triggerPush(title, message) {
-            if ("Notification" in window && Notification.permission === "granted") {
-                new Notification(title, {
-                    body: message,
-                    icon: "https://cdn-icons-png.flaticon.com/512/1041/1041916.png"
-                });
-            }
-        }
-
+    if ("Notification" in window && Notification.permission === "granted") {
+        new Notification(title, { body: message });
+    }
+}
         // --- AUTH & SESSION ---
         window.logout = () => {
             if(confirm("Keluar dari aplikasi?")) {
@@ -284,19 +285,33 @@ enableIndexedDbPersistence(db).catch((err) => {
         // Ganti fungsi startListening lama dengan ini
 function startListening() {
     let q;
-    // Meningkatkan limit ke 50 agar laporan yang baru saja lewat tidak hilang dari pantauan real-time
+    // Limit dinaikkan ke 50 agar status data lama tetap terpantau jika di-update manager
     if (currentRole === 'uploader') {
-        q = query(collection(db, ...COLLECTION), 
-            where("outlet", "==", activeOutlet), 
-            orderBy('timestamp', 'desc'), 
-            limit(50));
+        q = query(collection(db, ...COLLECTION), where("outlet", "==", activeOutlet), orderBy('timestamp', 'desc'), limit(50));
     } else {
-        q = query(collection(db, ...COLLECTION), 
-            orderBy('timestamp', 'desc'), 
-            limit(50));
+        q = query(collection(db, ...COLLECTION), orderBy('timestamp', 'desc'), limit(50));
     }
     
     onSnapshot(q, (snap) => {
+        if (!isInitialLoad) {
+            snap.docChanges().forEach((change) => {
+                const docData = change.doc.data();
+                if (change.type === "modified") {
+                    const statusLabel = docData.status === 'approved' ? "DISETUJUI ✅" : (docData.status === 'rejected' ? "DITOLAK ❌" : "PENDING ⏳");
+                    if (currentRole === 'uploader') {
+                        triggerPush("Update Laporan", `Laporan ${docData.area} ${statusLabel}`);
+                    }
+                }
+            });
+        }
+        
+        rawReports = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        renderReports(); 
+        isInitialLoad = false;
+    }, (error) => {
+        console.error("Koneksi bermasalah: ", error);
+    });
+}
         // Logika Notifikasi Push
         if (!isInitialLoad) {
             snap.docChanges().forEach((change) => {
