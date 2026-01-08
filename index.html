@@ -198,8 +198,10 @@
             document.getElementById('display-outlet').innerText = activeOutlet;
             document.getElementById('display-shift').innerText = "SHIFT: " + activeShift;
             if ("Notification" in window) {
-        Notification.requestPermission();
-    }
+        if (Notification.permission !== "granted" && Notification.permission !== "denied") {
+            Notification.requestPermission();
+        }
+            }
             if (currentRole === 'uploader') {
                 document.getElementById('uploader-nav').classList.remove('hidden');
                 showSection('list', false);
