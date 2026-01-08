@@ -197,6 +197,9 @@
             document.getElementById('main-screen').classList.remove('hidden');
             document.getElementById('display-outlet').innerText = activeOutlet;
             document.getElementById('display-shift').innerText = "SHIFT: " + activeShift;
+            if ("Notification" in window) {
+        Notification.requestPermission();
+    }
             if (currentRole === 'uploader') {
                 document.getElementById('uploader-nav').classList.remove('hidden');
                 showSection('list', false);
@@ -395,26 +398,44 @@ function onLoginSuccess() {
         let isFirstLoad = true;
 
 async function startListening() {
-    // Gunakan query yang sesuai (Uploader vs Viewer)
     const q = query(collection(db, ...COLLECTION), orderBy('timestamp', 'desc'), limit(10));
     
     onSnapshot(q, (snap) => {
-        if (!snap.empty) {
-            // PERBAIKAN: Simpan dokumen terakhir agar fungsi 'loadMoreData' tahu harus mulai dari mana
-            lastVisibleDoc = snap.docs[snap.docs.length - 1]; 
+        snap.docChanges().forEach((change) => {
+            const data = change.doc.data();
             
+            // CEK NOTIFIKASI JIKA ADA PERUBAHAN (Bukan saat pertama load)
+            if (!isFirstLoad && Notification.permission === "granted") {
+                
+                // 1. Notifikasi untuk MANAGER (Ada Laporan Masuk Baru)
+                if (currentRole === 'viewer' && change.type === "added") {
+                    new Notification("Laporan Baru!", {
+                        body: `${data.outlet} melaporkan area ${data.area}`,
+                        icon: "https://cdn-icons-png.flaticon.com/512/190/190411.png"
+                    });
+                }
+
+                // 2. Notifikasi untuk PETUGAS (Status di-update oleh Manager)
+                if (currentRole === 'uploader' && change.type === "modified" && data.outlet === activeOutlet) {
+                    const statusText = data.status === 'approved' ? 'DISETUJUI ✅' : 'DITOLAK ❌';
+                    new Notification("Update Status!", {
+                        body: `Laporan area ${data.area} telah ${statusText}`,
+                        icon: "https://cdn-icons-png.flaticon.com/512/190/190411.png"
+                    });
+                }
+            }
+        });
+
+        if (!snap.empty) {
+            lastVisibleDoc = snap.docs[snap.docs.length - 1];
             rawReports = snap.docs.map(d => ({ id: d.id, ...d.data() }));
             
-            // Tampilkan tombol "Muat Lebih Banyak" jika data mencapai limit (10)
             const loadMoreBtn = document.getElementById('load-more-container');
-            if (snap.docs.length === 10) {
-                loadMoreBtn.classList.remove('hidden');
-            } else {
-                loadMoreBtn.classList.add('hidden');
-            }
+            if (snap.docs.length === 10) loadMoreBtn.classList.remove('hidden');
+            else loadMoreBtn.classList.add('hidden');
             
-            renderReports(); 
-            isFirstLoad = false;
+            renderReports();
+            isFirstLoad = false; // Set false setelah loading pertama selesai
         }
     });
 }
